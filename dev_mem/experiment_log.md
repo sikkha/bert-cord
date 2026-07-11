@@ -414,3 +414,90 @@ inference-only (no training state).
 Limitations: **FP32 CPU only** was validated. Apple **CoreML** EP and NVIDIA
 **onnxruntime-gpu / CUDAExecutionProvider** were **not** run — untested. Checkpoint save/large
 external-data write inflated by the slow synced mount; not a code issue.
+
+---
+
+## EXP-007 — Hugging Face ONNX package (local staging; no upload)
+
+Date: 2026-07-11 (UTC). Hardware: Linux aarch64, CPU-only, FP32. onnx 1.22.0 / onnxruntime
+1.23.2. **No network, no HF auth, no upload.**
+
+- Package version: `0.1.1-onnx`; future HF repo: `sikkha/bert-cord-27m-mlm-onnx`.
+- Source: repo `https://github.com/sikkha/bert-cord`, commit
+  `0e17db558ebcce29f40b49d546af8b2704640230`, tag `v0.1.1-onnx` (detected automatically).
+- Source ONNX: `exports/bert_cord_27m_mlm.onnx` (+ `.onnx.data`).
+- Build command:
+  `python scripts/build_hf_onnx_package.py --config configs/bert_25m_mac.yaml
+  --onnx-model exports/bert_cord_27m_mlm.onnx --output bert-cord-27m-mlm-onnx
+  --repo-id sikkha/bert-cord-27m-mlm-onnx --package-version 0.1.1-onnx`
+- **Relink verified:** packaged `onnx/model.onnx` external-data location = `model.onnx.data`
+  (re-saved, not renamed).
+- Fresh parity (packaged ONNX vs PyTorch, same weights via `step_000040`): **max|Δ| = 8.11e-6**,
+  top-5 agreement **1.00**, NaN/Inf **False**, provider `CPUExecutionProvider`, dynamic axes OK
+  (batch {1,2,3} × seq {64,128}), onnx.checker PASS. (rtol=1e-3, atol=2e-3.)
+- Package files + SHA-256 (from MANIFEST.json; created_utc 2026-07-11T16:42:16Z):
+  - `LICENSE` 11,357 B `c71d239d…`
+  - `README.md` 5,650 B `83a63b7b…`
+  - `config.json` 847 B `27475a8e…`
+  - `evaluation.json` 1,503 B `a910f611…`
+  - `inference.py` 3,138 B `aa758aca…`
+  - `requirements.txt` 30 B `2ec7b315…`
+  - `onnx/model.onnx` 701,546 B `9f10b894…`
+  - `onnx/model.onnx.data` 107,453,952 B `b234d8e4…`
+  - Total ≈ 108,180,167 B (103.2 MB).
+- Validation: `scripts/validate_hf_onnx_package.py bert-cord-27m-mlm-onnx` → **17/17 PASS**
+  (required/forbidden files, JSON parse, README front matter, source-commit==HEAD, MANIFEST
+  checksums, both ONNX files, external-data linkage, onnx.checker, ORT contract, dynamic
+  batch+sequence, `inference.py` subprocess, no absolute-path leak, no secret leak).
+- Standalone `python bert-cord-27m-mlm-onnx/inference.py` → providers `[CPUExecutionProvider]`,
+  logits `(1, 24, 32000)`, top-5 ids `[62, 66, 23, 64, 39]` (matches PyTorch/ONNX top-1 62).
+- Tests: **136 passed, 1 xfailed** (122 + 14 new HF-package tests, tiny fixtures, offline).
+
+Interpretation: a self-contained HF model-repo package exists locally, honest and complete,
+with verified external-data linkage and parity; ready for **manual** upload. Nothing was
+uploaded or authenticated.
+
+Limitations: synthetic MLM baseline; no tokenizer; CPU/FP32 validated only; CUDA/CoreML/FP16/BF16
+unvalidated; not a coordinator. The staging dir is git-ignored (~103 MB).
+
+### Later manual upload commands (NOT executed)
+
+```
+hf repo create sikkha/bert-cord-27m-mlm-onnx --type model
+hf upload sikkha/bert-cord-27m-mlm-onnx bert-cord-27m-mlm-onnx .
+```
+
+---
+
+## EXP-008 — HF package refinement (v0.1.2-hf-onnx): separated provenance + strict cleanup
+
+Date: 2026-07-11. Linux aarch64, CPU/FP32. onnx 1.22.0 / onnxruntime 1.23.2. No network/HF auth.
+
+- Separated provenance in config.json / evaluation.json / MANIFEST.json:
+  `model_source_commit=0e17db55…`, `model_source_tag=v0.1.1-onnx` (ONNX export commit) vs
+  `packaging_source_commit=0e17db55…`, `packaging_source_tag=v0.1.2-hf-package` (tooling commit).
+  The distinct tags demonstrate the separation in the artifact.
+- Package version bumped to `0.1.2-hf-onnx`.
+- `rmtree(ignore_errors=True)` removed → strict `_prepare_output_dir`. Verified: building into the
+  existing (unremovable, on this synced mount) `bert-cord-27m-mlm-onnx/` **aborts with exit 1** and
+  the message "output directory … could not be removed cleanly … Remove it manually ('rm -rf') or
+  pass a fresh --output path." — no mixed/stale package produced.
+- Rebuilt from a **fresh path** `dist/bert-cord-27m-mlm-onnx` (dist/ git-ignored):
+  `python scripts/build_hf_onnx_package.py --config configs/bert_25m_mac.yaml --onnx-model
+  exports/bert_cord_27m_mlm.onnx --output dist/bert-cord-27m-mlm-onnx --repo-id
+  sikkha/bert-cord-27m-mlm-onnx --package-version 0.1.2-hf-onnx --model-source-commit 0e17db55…
+  --model-source-tag v0.1.1-onnx` → SUCCESS. Graph 701,546 B + weights 107,453,952 B (total
+  108,180,892 B ≈ 103.2 MB). Parity max|Δ| 8.11e-6, top-5 1.00, no NaN/Inf, CPU.
+- Validator (fresh package): **17/17 PASS** (now checks `packaging_source_commit == HEAD`).
+- Standalone `inference.py`: logits (1,24,32000), top-5 ids [62,66,23,64,39].
+- Tests: **139 passed, 1 xfailed** (+3 package tests: provenance separation; failed-cleanup abort;
+  CLI non-zero exit on failed cleanup — via mocked `shutil.rmtree`).
+
+Honest limitations (unchanged + new):
+- **Git commit/tag could not be landed in this sandbox:** the synced mount re-created a
+  `.git/index.lock` that cannot be unlinked ("Operation not permitted"), so `git add`/`git commit`
+  fail here. HEAD remains `0e17db55`; the packaging tooling changes are on disk but uncommitted;
+  the tag `v0.1.2-hf-package` exists pointing at `0e17db55`. On a normal filesystem:
+  `rm -f .git/index.lock .git/HEAD.lock && git add -A && git commit -m "…" && git tag -a
+  v0.1.2-hf-package -m "…"` completes it; then `packaging_source_commit` becomes the new hash.
+- Still CPU/FP32 only; CUDA/CoreML/FP16/BF16 unvalidated. Not a coordinator; synthetic MLM baseline.

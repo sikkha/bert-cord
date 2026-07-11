@@ -146,6 +146,21 @@ python scripts/predict_mask_onnx.py --model exports/bert_cord_27m_mlm.onnx --per
 ONNX export/inference is optional (`pip install -e ".[onnx]"`) and MLM-only; the PyTorch
 checkpoint stays authoritative. See [`docs/ONNX_EXPORT.md`](docs/ONNX_EXPORT.md).
 
+### Hugging Face ONNX package (local staging; manual upload)
+
+Build a self-contained HF model-repo package for the ONNX baseline (no upload, no auth):
+
+```bash
+python scripts/build_hf_onnx_package.py --config configs/bert_25m_mac.yaml \
+    --onnx-model exports/bert_cord_27m_mlm.onnx --output bert-cord-27m-mlm-onnx \
+    --repo-id sikkha/bert-cord-27m-mlm-onnx --package-version 0.1.2-hf-onnx
+python scripts/validate_hf_onnx_package.py bert-cord-27m-mlm-onnx
+```
+
+The staging dir `bert-cord-27m-mlm-onnx/` is git-ignored. Future HF repo: `sikkha/bert-cord-27m-mlm-onnx`.
+Upload is manual — see [`docs/HUGGINGFACE_ONNX_RELEASE.md`](docs/HUGGINGFACE_ONNX_RELEASE.md).
+This is a **synthetic MLM baseline** (no tokenizer, no language understanding), not the coordinator.
+
 ## Experiment output layout
 
 ```

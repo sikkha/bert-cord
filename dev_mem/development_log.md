@@ -378,3 +378,80 @@ CPU only validated. The ~100 MB artifact is git-ignored (distribute via Releases
 Next recommended step: on the DGX, install `onnxruntime-gpu`, re-run `validate_onnx.py` with
 `CUDAExecutionProvider`, and record BF16/FP16 ONNX behavior; optionally evaluate CoreML EP on the
 Mac. Then proceed toward Milestone 1 (100M) as previously planned.
+
+---
+
+## Hugging Face ONNX packaging (local staging; version 0.1.1-onnx)
+
+Date: 2026-07-11.
+
+Task: prepare a self-contained Hugging Face model-repository package for the ONNX baseline,
+built locally for **manual** upload later. No upload, no HF auth, no remote creation, no network.
+PyTorch checkpoints untouched; architecture/training unchanged.
+
+Files added:
+- `scripts/build_hf_onnx_package.py` — detects source commit/tag, safely recreates the staging
+  dir, **re-saves the ONNX so the graph references `model.onnx.data`** (relink, not rename),
+  re-measures parity, generates README/config/evaluation/inference/requirements/LICENSE/MANIFEST,
+  validates the packaged copy, prints the later manual upload commands (never uploads).
+- `scripts/validate_hf_onnx_package.py` — offline validator (17 checks).
+- `tests/test_hf_package.py` (14 tests, tiny fixtures, offline).
+- `docs/HUGGINGFACE_ONNX_RELEASE.md`.
+Files modified: `.gitignore` (ignore `bert-cord-27m-mlm-onnx/`), `README.md`,
+`docs/RELEASE_CHECKLIST.md`, `CLAUDE.md`, `dev_mem/*`.
+
+Local package: `bert-cord-27m-mlm-onnx/` — README.md, LICENSE, config.json, evaluation.json,
+requirements.txt, inference.py, MANIFEST.json, onnx/model.onnx (+ .onnx.data). Total ≈ 103.2 MB.
+Future HF repo: `sikkha/bert-cord-27m-mlm-onnx`.
+
+Environment: torch 2.13.0+cpu, onnx 1.22.0, onnxruntime 1.23.2; CPU/FP32.
+
+Commands run (inspected):
+- Build: SUCCESS — source commit `0e17db55…`, tag `v0.1.1-onnx`; graph 701,546 B + weights
+  107,453,952 B; parity max|Δ| 8.11e-6, top-5 1.00.
+- Validate: `validate_hf_onnx_package.py bert-cord-27m-mlm-onnx` → **17/17 PASS**.
+- Standalone `inference.py` → logits (1,24,32000), top-5 `[62,66,23,64,39]`.
+- `pytest`: **136 passed, 1 xfailed** (122 + 14 package tests).
+
+Actual results: package built and validated offline; external-data linkage verified; honest
+model card (synthetic MLM baseline, no tokenizer, CPU/FP32 only, not a coordinator, no
+`AutoModel` claim). See experiment_log EXP-007.
+
+Failures & fixes: (1) parity used seq 128 which exceeds the tiny test model's `max_position_
+embeddings=64` → made parity seq lengths derive from the config's max positions (128/64 for the
+27M model, 64/32 for the tiny test). (2) The validator's dynamic-axes probe used random ids up to
+99, exceeding the tiny vocab (96) → switched to a small safe id range (0–7) valid for any vocab.
+
+Constraints honored: no upload, no HF authentication, no remote creation, no network; authoritative
+PyTorch checkpoints unmodified; staging dir git-ignored; no `AutoModel`/coordination/language-
+understanding/production claims.
+
+Next recommended step: manual `hf repo create` + `hf upload` when ready (documented in
+`docs/HUGGINGFACE_ONNX_RELEASE.md`); then DGX ONNX GPU validation, then Milestone 1 (100M).
+
+---
+
+## HF ONNX packaging refinement (v0.1.2-hf-onnx; tag v0.1.2-hf-package)
+
+Date: 2026-07-11.
+
+Task: separate model vs packaging provenance, bump version, make cleanup strict, prove failed
+cleanup aborts, commit/tag the tooling, and rebuild from a fresh path.
+
+Changes:
+- `scripts/build_hf_onnx_package.py`: replaced the single `source_commit`/`source_tag` with four
+  fields — `model_source_commit`/`model_source_tag` (the ONNX export commit, via new
+  `--model-source-commit`/`--model-source-tag`, default = packaging HEAD) and
+  `packaging_source_commit`/`packaging_source_tag` (auto-detected HEAD at build time). Written to
+  config.json, evaluation.json, MANIFEST.json, and the model card. Package version → `0.1.2-hf-onnx`.
+- **Removed `rmtree(ignore_errors=True)`**; added strict `_prepare_output_dir` that aborts with an
+  actionable error if the output dir cannot be removed cleanly (avoids mixed/stale packages).
+- `scripts/validate_hf_onnx_package.py`: now checks `packaging_source_commit == HEAD` (model
+  provenance may differ from HEAD).
+- `tests/test_hf_package.py`: +3 tests — provenance separation; failed-cleanup aborts without a
+  partial package; CLI returns non-zero on failed cleanup. Total package tests: 17.
+- Docs: `docs/HUGGINGFACE_ONNX_RELEASE.md`, `README.md` version + provenance wording.
+
+Verification: **139 passed, 1 xfailed**. Committed the packaging tools and tagged
+`v0.1.2-hf-package`; rebuilt the package from a fresh path; re-ran validator (17/17) and
+standalone inference. See experiment_log EXP-008. Nothing uploaded; no HF auth; no network.

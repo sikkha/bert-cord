@@ -137,6 +137,47 @@ inspected real 27.01M export + parity run (`max|Δ|≈7e-6`, top-5 agreement 1.0
 FP32 CPU only is validated; CoreML and `onnxruntime-gpu` remain untested (documented honestly).
 Large models externalize weights to a sibling `.onnx.data` file that must ship with the graph.
 
+## ADR-015: Hugging Face model-repo packaging for the ONNX baseline (local staging only)
+
+Date: 2026-07-11
+
+Status: accepted
+
+Context: We want a Hugging Face model repository (`sikkha/bert-cord-27m-mlm-onnx`) for the ONNX
+inference baseline, prepared locally so it can be uploaded manually later — without uploading,
+authenticating, creating the remote, or touching the authoritative PyTorch checkpoints.
+
+Decision:
+- **Local staging dir** `bert-cord-27m-mlm-onnx/` (git-ignored), built by
+  `scripts/build_hf_onnx_package.py` and checked by `scripts/validate_hf_onnx_package.py`.
+  Neither script uploads, authenticates, or accesses the network.
+- **External-data relink (critical):** the source weights file is `<model>.onnx.data`, but the
+  packaged graph must reference `model.onnx.data`. Renaming is insufficient — the location is
+  stored inside the graph — so the builder **re-saves** the model with
+  `onnx.save_model(..., save_as_external_data=True, location="model.onnx.data")`, then validates
+  the packaged copy from inside the package dir.
+- **Package contract:** `README.md` (model card, `library_name: onnxruntime`, no
+  `pipeline_tag: fill-mask` — no tokenizer bundled), `LICENSE` (copied), `config.json`
+  (architecture + provenance: source commit/tag, params 27,010,304, opset 18, precision fp32),
+  `evaluation.json` (freshly measured parity + file checksums + limitations), `requirements.txt`
+  (numpy + onnxruntime only), `inference.py` (standalone, no bert_cord dependency), `MANIFEST.json`
+  (per-file path/size/SHA-256, excluding itself), `onnx/model.onnx` + `onnx/model.onnx.data`.
+- **Honesty constraints baked into the model card:** synthetic MLM baseline, not a coordinator/
+  mini-amygdala, no tokenizer, no `AutoModel` compatibility, no language-understanding or
+  production-readiness claim; CPU/FP32 validated, CUDA/CoreML/FP16/BF16 unvalidated; both ONNX
+  files required together.
+- **Four artifact planes kept distinct:** GitHub source (code) · W&B (run history) · Hugging Face
+  (portable inference artifact) · DGX PyTorch checkpoints (training source of truth).
+
+Alternatives: `pipeline_tag: fill-mask` / bundling a tokenizer (rejected: no usable NL tokenizer
+exists — synthetic ids only); committing the ~100 MB package to Git (rejected: git-ignored;
+distribute via HF); auto-upload (rejected: manual, explicit, no auth in tooling).
+
+Consequences: 14 package tests (tiny fixtures, offline) cover build, relink, checksums, JSON
+validity, independent inference, missing-`.onnx.data` failure, and validator rejection of
+forbidden files / checksum mismatch / absolute-path & secret leaks. The real package builds and
+validates 17/17 offline. Upload remains a documented manual step.
+
 ## ADR-009: Conservative, non-learned training-curve analysis + optional early stop
 
 Date: 2026-07-11

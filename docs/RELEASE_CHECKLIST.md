@@ -33,6 +33,18 @@ Run through this before pushing `bert_cord` to GitHub and before any DGX bring-u
 - [ ] `docs/ONNX_EXPORT.md` present; opset + tolerances documented; MLM-only scope stated.
 - [ ] No CoreML / `onnxruntime-gpu` claims unless actually run on that hardware.
 
+## Hugging Face ONNX package (local staging; manual upload)
+
+- [ ] `scripts/build_hf_onnx_package.py` builds `bert-cord-27m-mlm-onnx/` with the expected
+      layout; packaged graph references `model.onnx.data` (relinked, not just renamed).
+- [ ] `scripts/validate_hf_onnx_package.py` passes all checks offline (no network).
+- [ ] `config.json` params = 27,010,304; `source_commit` matches HEAD; MANIFEST checksums valid.
+- [ ] `python bert-cord-27m-mlm-onnx/inference.py` runs standalone (numpy + onnxruntime only).
+- [ ] No secrets / absolute paths leak; staging dir is git-ignored (not committed).
+- [ ] Model card is honest: synthetic MLM baseline, no tokenizer, CPU/FP32 only, not a coordinator.
+- [ ] Upload is **manual** (`hf repo create` + `hf upload`); nothing auto-uploaded/authenticated.
+- [ ] `docs/HUGGINGFACE_ONNX_RELEASE.md` present and linked from README.
+
 ## Correctness
 
 - [ ] `python -m pytest -q` — all pass (+1 intentional distillation xfail).

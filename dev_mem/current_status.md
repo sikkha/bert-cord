@@ -1,6 +1,33 @@
 # Current Status
 
-_Last updated: 2026-07-11 — Milestone 0.7 (ONNX export + portable inference) complete on CPU._
+_Last updated: 2026-07-11 — Milestone 0.7 (ONNX) + Hugging Face ONNX package (0.1.1-onnx) staged._
+
+## Hugging Face ONNX package (v0.1.2-hf-onnx) — staged locally, not uploaded
+
+- **Test suite: 139 passed, 1 xfailed** (122 + 17 HF-package tests; tiny fixtures, offline).
+- Local staging dir `bert-cord-27m-mlm-onnx/` (git-ignored) built via
+  `scripts/build_hf_onnx_package.py`; validated **17/17** offline via
+  `scripts/validate_hf_onnx_package.py`. Future HF repo `sikkha/bert-cord-27m-mlm-onnx`.
+- Contents: README (model card), LICENSE, config.json, evaluation.json, requirements.txt,
+  inference.py (standalone, no bert_cord dep), MANIFEST.json (SHA-256), onnx/model.onnx (+ .data).
+  Total ≈ 103.2 MB. Packaged graph correctly references `model.onnx.data` (relinked).
+- **Separated provenance:** `model_source_commit`/`model_source_tag` (ONNX export commit) are
+  tracked distinctly from `packaging_source_commit`/`packaging_source_tag` (tooling commit).
+  The builder aborts (non-zero exit) rather than reuse a directory it cannot cleanly remove.
+- Parity (packaged ONNX vs PyTorch): max|Δ| 8.11e-6, top-5 agreement 1.00, no NaN/Inf, CPU/FP32.
+- **No upload, no HF auth, no remote creation, no network.** Honest model card: synthetic MLM
+  baseline, no tokenizer, not a coordinator, no `AutoModel`/language-understanding/production claim.
+- Untested (unchanged): CUDA (`onnxruntime-gpu`), CoreML, FP16/BF16.
+
+## Immediate next step
+
+When ready, upload **manually**: `hf repo create sikkha/bert-cord-27m-mlm-onnx --type model` then
+`hf upload sikkha/bert-cord-27m-mlm-onnx bert-cord-27m-mlm-onnx .` (see
+`docs/HUGGINGFACE_ONNX_RELEASE.md`). Then DGX ONNX-GPU validation; then Milestone 1 (100M).
+
+---
+
+_Milestone 0.7 (ONNX export) status below (still current)._
 
 ## Milestone 0.7 (ONNX export & portable inference) — verified
 

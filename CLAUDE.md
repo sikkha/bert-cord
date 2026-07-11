@@ -80,6 +80,13 @@ checkpoints (model/optimizer/scheduler/step/RNG).
   ONNX artifacts (`exports/`, `*.onnx`, `*.onnx.data`) are git-ignored — distribute via GitHub
   Releases / Hugging Face, not Git history. Do not claim CoreML or `onnxruntime-gpu` validation
   unless actually run on that hardware.
+- **Hugging Face packaging:** the HF model-repo package is built locally into
+  `bert-cord-27m-mlm-onnx/` (git-ignored) via `scripts/build_hf_onnx_package.py` and checked with
+  `scripts/validate_hf_onnx_package.py`. **Never upload, authenticate to HF, or create the remote
+  from tooling — uploads are manual.** The packaged ONNX graph must reference `model.onnx.data`
+  (re-save, don't just rename). It is a **synthetic MLM baseline**: do not claim a tokenizer,
+  Transformers `AutoModel` compatibility, coordination, or language understanding. Do not commit
+  the staging dir; distribute via the HF repo `sikkha/bert-cord-27m-mlm-onnx`.
 
 ## Conservative DGX edit policy (must follow on the DGX Spark)
 

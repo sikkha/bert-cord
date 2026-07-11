@@ -46,6 +46,9 @@ exports/
 *.onnx.data
 *.ort
 
+# ---- Local Hugging Face model-repository staging (large; upload manually, never commit) ----
+bert-cord-27m-mlm-onnx/
+
 # ---- Generated analysis figures (tracked docs examples live under docs/ if any) ----
 *.png
 *.svg
