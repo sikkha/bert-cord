@@ -1,0 +1,52 @@
+{
+  "status": "CONTINUE",
+  "run_id": "run_001",
+  "current_step": 960.0,
+  "best_step": 960.0,
+  "recommended_stop_step": null,
+  "best_val_loss": 2.1503335189855015,
+  "predicted_val_loss": {
+    "1000": 2.0780672352945566,
+    "2000": 1.97864435448533
+  },
+  "predicted_asymptote": {
+    "point": 1.6874147808742628
+  },
+  "confidence": {
+    "n_success": 200,
+    "ci": 0.9,
+    "per_step": {
+      "1000": {
+        "median": 2.0870485657264357,
+        "low": 2.018357255960329,
+        "high": 2.133303667159697
+      },
+      "2000": {
+        "median": 2.0031353506926406,
+        "low": 1.8738435165800749,
+        "high": 2.113699320938259
+      }
+    },
+    "asymptote": {
+      "median": 1.7875533030530408,
+      "low": 0.5742440095183369,
+      "high": 2.10136551367001
+    }
+  },
+  "recent_slope_per_step": -0.0005199206552559218,
+  "recent_slope_per_log_step": -0.3405852949675113,
+  "recent_improvement_per_100": 0.05199206552559218,
+  "plateau_start": null,
+  "instability_steps": [],
+  "chosen_curve_model": "power",
+  "fit_quality": {
+    "model": "power",
+    "r2": 0.9554511003071193,
+    "aic": -68.31337790769659,
+    "tail_rmse": 0.07107258884551636,
+    "n_points": 12
+  },
+  "prob_beats_target": {},
+  "target_loss": null,
+  "warnings": []
+}

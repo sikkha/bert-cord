@@ -1,0 +1,14 @@
+# Resolved: 25M model + Mac (MPS/CPU) platform. Self-contained via `extends`.
+extends:
+  - model/bert_25m.yaml
+  - platform/mac_mps.yaml
+data:
+  dataset_name: null
+  synthetic:
+    num_train_examples: 4096
+    num_val_examples: 512
+    min_len: 24
+    max_len: 128
+output:
+  dir: experiments/bert_25m_mac
+  checkpoint_dir: experiments/bert_25m_mac/checkpoints

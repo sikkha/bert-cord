@@ -11,8 +11,11 @@ from .configuration import (
     ModelConfig,
     OutputConfig,
     RunConfig,
+    RuntimeConfig,
+    TrackingConfig,
     TrainConfig,
     load_config,
+    load_config_dict,
 )
 from .masking import MLMasker, MaskingOutput
 from .model import (
@@ -30,7 +33,10 @@ __all__ = [
     "DataConfig",
     "OutputConfig",
     "RunConfig",
+    "RuntimeConfig",
+    "TrackingConfig",
     "load_config",
+    "load_config_dict",
     "BertModel",
     "BertForMaskedLM",
     "count_parameters",

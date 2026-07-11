@@ -1,4 +1,4 @@
-# Python
+# ---- Python ----
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -7,24 +7,59 @@ build/
 dist/
 .venv/
 venv/
+env/
+ENV/
 
-# Testing / caches
+# ---- Testing / caches ----
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
-# Checkpoints & experiment outputs (keep the smoke dir, ignore heavy artifacts)
-experiments/**/checkpoints/
-experiments/**/*.pt
-experiments/**/*.bin
-*.ckpt
+# ---- OS ----
+.DS_Store
+Thumbs.db
 
-# Tokenizer artifacts
+# ---- Data (never committed) ----
+data/
+datasets/
+outputs/
 artifacts/
 *.model
 
-# OS
-.DS_Store
+# ---- Experiment tracking / generated run outputs ----
+wandb/
+experiments/                 # generated runs, checkpoints, analysis, benchmarks
 
-# Large source docs
+# ---- Model checkpoints & large binaries ----
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+
+# ---- Generated analysis figures (tracked docs examples live under docs/ if any) ----
+*.png
+*.svg
 *.pdf
+!docs/**/*.png
+!docs/**/*.svg
+
+# ---- Secrets / environment ----
+.env
+.env.*
+*.key
+*.pem
+secrets.*
+**/secrets/**
+
+# NOTE: intentionally TRACKED (do not ignore):
+#   src/, scripts/, configs/, tests/ (incl. tests/fixtures/*.jsonl), docs/,
+#   dev_mem/*.md, pyproject.toml, README.md, CLAUDE.md
+
+# Obsidian metadata
+# Obsidian metadata
+.obsidian/
+**/.obsidian/

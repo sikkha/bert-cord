@@ -1,0 +1,27 @@
+{
+  "os": "Linux",
+  "arch": "aarch64",
+  "python": "3.10.12",
+  "features": {
+    "torch_version": "2.13.0+cpu",
+    "python_version": "3.10.12",
+    "os": "Linux",
+    "arch": "aarch64",
+    "cuda_available": false,
+    "cuda_build_version": null,
+    "cudnn_version": null,
+    "gpu_name": null,
+    "compute_capability": null,
+    "gpu_mem_total_bytes": null,
+    "gpu_mem_free_bytes": null,
+    "mps_built": false,
+    "mps_available": false,
+    "bf16_supported": false,
+    "tf32_capable": false,
+    "sdpa_available": true,
+    "flash_sdp_available": null,
+    "mem_efficient_sdp_available": null,
+    "fused_adamw_available": true,
+    "torch_compile_available": true
+  }
+}

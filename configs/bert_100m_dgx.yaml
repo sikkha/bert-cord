@@ -1,0 +1,14 @@
+# Resolved: PROVISIONAL 100M model + DGX throughput profile. Do NOT run full training yet.
+extends:
+  - model/bert_100m.yaml
+  - platform/dgx_throughput.yaml
+data:
+  dataset_name: null
+  synthetic:
+    num_train_examples: 8192
+    num_val_examples: 512
+    min_len: 24
+    max_len: 512
+output:
+  dir: experiments/bert_100m_dgx
+  checkpoint_dir: experiments/bert_100m_dgx/checkpoints

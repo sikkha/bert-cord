@@ -1,0 +1,38 @@
+# Mac (Apple Silicon) platform profile — hardware/runtime + a conservative training envelope.
+# Scientific knobs here (seed/lr/batch/seq/optimizer/scheduler) are the SHARED comparison
+# workload; the DGX portability profile matches them exactly and differs only in precision and
+# device. Nothing is altered silently — the resolved settings are printed at startup.
+tracking:
+  backend: none             # opt in with --wandb or set backend: wandb
+
+runtime:
+  device: auto              # -> mps on Apple Silicon, cpu otherwise
+  allow_tf32: false
+  pin_memory: false         # not useful off CUDA
+  num_workers: 0            # conservative; MPS + fork workers can be fragile
+  persistent_workers: false
+  non_blocking: false
+  fused_adamw: false
+  torch_compile: false      # disabled by default
+
+train:
+  precision: fp32           # MPS: bf16/fp16 training unsupported -> fp32
+  seed: 42
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  max_grad_norm: 1.0
+  warmup_steps: 100
+  max_steps: 2000
+  lr_scheduler: cosine
+  min_lr_ratio: 0.1
+  per_device_batch_size: 16
+  gradient_accumulation_steps: 2
+  max_seq_length: 128
+  mlm_probability: 0.15
+  eval_every: 100
+  save_every: 200
+  eval_max_batches: 20
+  log_every: 20

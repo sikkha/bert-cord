@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "project_brief.md",
+                "file": "experiment_log.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "project_brief"
+              "title": "experiment_log"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "project_brief.md",
+                "file": "experiment_log.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for project_brief"
+              "title": "Backlinks for experiment_log"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "project_brief.md",
+                "file": "experiment_log.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from project_brief"
+              "title": "Outgoing links from experiment_log"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "project_brief.md",
+                "file": "experiment_log.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of project_brief"
+              "title": "Outline of experiment_log"
             }
           }
         ]
@@ -185,7 +185,12 @@
   },
   "active": "9fc3344d715ad1e7",
   "lastOpenFiles": [
+    "project_brief.md",
+    "2512.04695v3.pdf",
+    "trinity_2512.04695v3.pdf",
+    "experiment_log.md",
     "development_log.md",
-    "2512.04695v3.pdf"
+    "current_status.md",
+    "architecture_decisions.md"
   ]
 }

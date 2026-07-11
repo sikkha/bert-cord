@@ -1,0 +1,25 @@
+# 500-step synthetic run (learnable copy-motif corpus). Platform-neutral: defaults to auto
+# device / fp32. Point --config here and override the platform via a resolved config if desired.
+extends:
+  - ../model/bert_25m.yaml
+  - ../platform/mac_mps.yaml
+train:
+  max_steps: 500
+  warmup_steps: 50
+  eval_every: 50
+  save_every: 250
+  eval_max_batches: 10
+  log_every: 25
+  per_device_batch_size: 16
+  gradient_accumulation_steps: 2
+  max_seq_length: 128
+data:
+  dataset_name: null
+  synthetic:
+    num_train_examples: 4096
+    num_val_examples: 512
+    min_len: 24
+    max_len: 128
+output:
+  dir: experiments/synthetic_500
+  checkpoint_dir: experiments/synthetic_500/checkpoints

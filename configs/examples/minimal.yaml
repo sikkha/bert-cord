@@ -1,0 +1,55 @@
+# Minimal self-contained example (no `extends`). Shows the full flat schema with every section.
+model:
+  vocab_size: 32000
+  hidden_size: 384
+  num_hidden_layers: 8
+  num_attention_heads: 6
+  intermediate_size: 1536
+  max_position_embeddings: 512
+  type_vocab_size: 2
+  norm_type: post
+  tie_word_embeddings: true
+  use_sdpa: false
+
+tracking:
+  backend: none            # none | wandb  (default none; W&B is optional)
+  mode: offline            # offline | online | disabled
+  project: bert-cord
+  log_analysis_artifacts: true
+  log_checkpoints: false
+
+runtime:
+  device: auto             # auto | cpu | cuda | mps
+  allow_tf32: false
+  pin_memory: false
+  num_workers: 0
+  persistent_workers: false
+  non_blocking: false
+  fused_adamw: false
+  torch_compile: false
+
+train:
+  seed: 42
+  precision: auto          # auto | bf16 | fp16 | fp32
+  learning_rate: 1.0e-4
+  max_steps: 40
+  warmup_steps: 4
+  per_device_batch_size: 8
+  gradient_accumulation_steps: 1
+  max_seq_length: 32
+  eval_every: 10
+  save_every: 1000
+  eval_max_batches: 4
+  log_every: 5
+
+data:
+  dataset_name: null
+  synthetic:
+    num_train_examples: 256
+    num_val_examples: 64
+    min_len: 24
+    max_len: 32
+
+output:
+  dir: experiments/minimal
+  checkpoint_dir: experiments/minimal/checkpoints

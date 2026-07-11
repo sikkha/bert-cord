@@ -1,0 +1,2 @@
+{"step": 3, "tokens_seen": 1375, "train_loss": 10.422496795654297, "val_loss": 10.27881407737732, "masked_accuracy": 0.0, "learning_rate": 7.500000000000001e-05, "gradient_norm": 6.417529106140137}
+{"step": 6, "tokens_seen": 2743, "train_loss": 9.929667472839355, "val_loss": 10.0166916847229, "masked_accuracy": 0.008, "learning_rate": 1e-05, "gradient_norm": 6.316778182983398}

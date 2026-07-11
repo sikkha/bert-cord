@@ -1,0 +1,52 @@
+{
+  "status": "CONTINUE",
+  "run_id": "mac_val",
+  "current_step": 30.0,
+  "best_step": 30.0,
+  "recommended_stop_step": null,
+  "best_val_loss": 7.122291822408336,
+  "predicted_val_loss": {
+    "100": 4.421151324828304,
+    "200": 4.322995103159092
+  },
+  "predicted_asymptote": {
+    "point": 4.321501425819943
+  },
+  "confidence": {
+    "n_success": 200,
+    "ci": 0.9,
+    "per_step": {
+      "100": {
+        "median": 4.471064385422402,
+        "low": -4.086985540134781,
+        "high": 5.996975004608523
+      },
+      "200": {
+        "median": 4.3685674928623275,
+        "low": -16.344217999314758,
+        "high": 5.99686786748444
+      }
+    },
+    "asymptote": {
+      "median": 4.3658600847918665,
+      "low": -83.91572075969655,
+      "high": 5.996867866122678
+    }
+  },
+  "recent_slope_per_step": -0.1135768855331879,
+  "recent_slope_per_log_step": -2.013245051721059,
+  "recent_improvement_per_100": 11.35768855331879,
+  "plateau_start": null,
+  "instability_steps": [],
+  "chosen_curve_model": "exp",
+  "fit_quality": {
+    "model": "exp",
+    "r2": 0.9637759153007671,
+    "aic": -24.04698120136133,
+    "tail_rmse": 0.22729198707748188,
+    "n_points": 10
+  },
+  "prob_beats_target": {},
+  "target_loss": null,
+  "warnings": []
+}

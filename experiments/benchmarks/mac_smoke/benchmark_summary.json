@@ -1,0 +1,57 @@
+{
+  "kind": "training_benchmark",
+  "note": "performance probe only; NOT a scientific/convergence result",
+  "device": "cpu",
+  "precision": "fp32",
+  "steps_total": 12,
+  "warmup_steps": 3,
+  "measured_steps": 9,
+  "effective_batch_size": 16,
+  "per_device_batch_size": 8,
+  "gradient_accumulation_steps": 2,
+  "sequence_length": 32,
+  "steps_per_s": 3.0320028732009394,
+  "tokens_per_s": 692.3073227142145,
+  "samples_per_s": 24.256022985607515,
+  "latency_median_ms": 256.19979199996123,
+  "latency_p90_ms": 503.560958200137,
+  "latency_p99_ms": 510.72000892017513,
+  "forward_mean_ms": 123.34168522224648,
+  "backward_mean_ms": 162.24484255558812,
+  "optimizer_mean_ms": 43.860680777773574,
+  "dataloader_wait_mean_ms": 0.3677823333292609,
+  "eval_overhead_s": 0.2188605409999127,
+  "checkpoint_overhead_s": 12.194383715000185,
+  "peak_ram_mb": 900.69140625,
+  "peak_vram_mb": null,
+  "total_tokens_processed": 2743,
+  "param_count": 27010304,
+  "runtime_notes": [],
+  "batch_probe": {
+    "candidates": [
+      8,
+      16,
+      32
+    ],
+    "sequence_length": 32,
+    "largest_ok": 32,
+    "results": [
+      {
+        "batch_size": 8,
+        "ok": true,
+        "peak_vram_mb": null
+      },
+      {
+        "batch_size": 16,
+        "ok": true,
+        "peak_vram_mb": null
+      },
+      {
+        "batch_size": 32,
+        "ok": true,
+        "peak_vram_mb": null
+      }
+    ],
+    "note": "diagnostic only; does NOT modify the training config"
+  }
+}

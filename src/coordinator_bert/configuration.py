@@ -8,6 +8,7 @@ checked without instantiating the model.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field, fields
 from typing import Any, Optional
 
@@ -163,13 +164,71 @@ class OutputConfig:
 
 
 @dataclass(frozen=True)
+class RuntimeConfig:
+    """Hardware / performance knobs — deliberately separate from the scientific settings.
+
+    These never change the mathematical workload; they select the device and toggle optional
+    performance features that are feature-detected and safely disabled when unavailable (see
+    ``coordinator_bert.runtime``).
+    """
+
+    device: str = "auto"                # auto | cpu | cuda | mps
+    allow_tf32: bool = False            # TF32 matmul/cudnn on Ampere+ CUDA
+    pin_memory: bool = False            # CUDA host->device pinned staging
+    num_workers: int = 0                # dataloader workers
+    persistent_workers: bool = False    # only honored when num_workers > 0
+    non_blocking: bool = False          # async H2D copies (CUDA only)
+    fused_adamw: bool = False           # fused AdamW when available (CUDA)
+    torch_compile: bool = False         # opt-in only; never default
+    compile_mode: str = "default"       # torch.compile mode when enabled
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "RuntimeConfig":
+        known = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in (d or {}).items() if k in known})
+
+
+@dataclass(frozen=True)
+class TrackingConfig:
+    """Optional experiment tracking. Default backend is ``none`` (a no-op).
+
+    Never affects training mathematics or the local JSONL/report pipeline. No secrets belong
+    here — online mode uses W&B's normal login / WANDB_API_KEY mechanism.
+    """
+
+    backend: str = "none"           # none | wandb
+    mode: str = "offline"           # offline | online | disabled
+    project: str = "bert-cord"
+    entity: Optional[str] = None
+    run_name: Optional[str] = None
+    group: Optional[str] = None
+    job_type: str = "training"
+    tags: tuple = ()
+    notes: Optional[str] = None
+    log_interval: int = 10
+    log_code: bool = False
+    log_checkpoints: bool = False
+    log_analysis_artifacts: bool = True
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "TrackingConfig":
+        d = dict(d or {})
+        if isinstance(d.get("tags"), list):
+            d["tags"] = tuple(d["tags"])
+        known = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in d.items() if k in known})
+
+
+@dataclass(frozen=True)
 class RunConfig:
-    """Top-level container binding model + train + data + output configs."""
+    """Top-level container binding model + train + data + output + runtime configs."""
 
     model: ModelConfig
     train: TrainConfig
     data: DataConfig
     output: OutputConfig
+    runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    tracking: TrackingConfig = field(default_factory=TrackingConfig)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "RunConfig":
@@ -178,15 +237,63 @@ class RunConfig:
             train=TrainConfig.from_dict(d.get("train", {})),
             data=DataConfig.from_dict(d.get("data", {})),
             output=OutputConfig.from_dict(d.get("output", {})),
+            runtime=RuntimeConfig.from_dict(d.get("runtime", {})),
+            tracking=TrackingConfig.from_dict(d.get("tracking", {})),
         )
 
     @classmethod
     def from_yaml(cls, path: str) -> "RunConfig":
-        with open(path, "r", encoding="utf-8") as fh:
-            raw = yaml.safe_load(fh) or {}
-        return cls.from_dict(raw)
+        return cls.from_dict(load_config_dict(path))
+
+    def to_dict(self) -> dict:
+        from dataclasses import asdict
+        return asdict(self)
+
+
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Recursively merge ``overlay`` onto ``base`` (overlay wins; dicts merge, scalars replace)."""
+    out = dict(base)
+    for k, v in (overlay or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def load_config_dict(path: str, _seen: Optional[set] = None) -> dict:
+    """Load a YAML config dict, resolving an optional ``extends:`` composition.
+
+    ``extends`` may be a string or list of paths (relative to the current file). Bases are
+    deep-merged in order, then the current file's own keys overlay them. This lets a resolved
+    config compose a model file + a platform file without the loader needing multiple args,
+    while plain flat configs (no ``extends``) load exactly as before.
+    """
+    path = os.path.abspath(path)
+    _seen = _seen or set()
+    if path in _seen:
+        raise ValueError(f"circular config extends detected at {path}")
+    _seen = _seen | {path}
+
+    with open(path, "r", encoding="utf-8") as fh:
+        raw = yaml.safe_load(fh) or {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"config {path} must be a mapping at top level")
+
+    extends = raw.pop("extends", None)
+    if not extends:
+        return raw
+
+    if isinstance(extends, str):
+        extends = [extends]
+    base_dir = os.path.dirname(path)
+    merged: dict = {}
+    for rel in extends:
+        base_path = rel if os.path.isabs(rel) else os.path.join(base_dir, rel)
+        merged = _deep_merge(merged, load_config_dict(base_path, _seen))
+    return _deep_merge(merged, raw)
 
 
 def load_config(path: str) -> RunConfig:
-    """Convenience loader used by scripts."""
+    """Convenience loader used by scripts (supports flat configs and ``extends`` composition)."""
     return RunConfig.from_yaml(path)

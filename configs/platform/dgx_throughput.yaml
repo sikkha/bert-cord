@@ -1,0 +1,44 @@
+# DGX throughput profile — turns ON performance features (all feature-detected & optional).
+# NOTE: this INTENTIONALLY changes the workload (larger batch, longer sequence, SDPA). It is a
+# performance profile, NOT the portability comparison. Do not use it for exact-match science.
+tracking:
+  backend: wandb            # DGX default; offline needs no auth/network
+  mode: offline
+  project: bert-cord
+  job_type: throughput
+
+runtime:
+  device: auto              # -> cuda on DGX
+  allow_tf32: true          # Ampere+ TF32 matmul (applied only when capable)
+  pin_memory: true
+  num_workers: 4
+  persistent_workers: true
+  non_blocking: true
+  fused_adamw: true         # used only if the fused AdamW path is available on CUDA
+  torch_compile: false      # opt-in only; keep disabled by default even here
+  compile_mode: default
+
+model:
+  use_sdpa: true            # enable PyTorch-native SDPA for speed
+
+train:
+  precision: bf16
+  seed: 42
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  max_grad_norm: 1.0
+  warmup_steps: 100
+  max_steps: 2000
+  lr_scheduler: cosine
+  min_lr_ratio: 0.1
+  per_device_batch_size: 64     # larger batch
+  gradient_accumulation_steps: 2
+  max_seq_length: 512           # longer sequence
+  mlm_probability: 0.15
+  eval_every: 500               # less frequent evaluation
+  save_every: 1000              # less frequent checkpointing
+  eval_max_batches: 20
+  log_every: 50

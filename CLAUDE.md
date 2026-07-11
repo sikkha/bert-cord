@@ -62,3 +62,30 @@ python scripts/pretrain_mlm.py --config configs/bert_25m.yaml --smoke --resume e
 The training entrypoint reports OS/arch, Python, PyTorch, CUDA, device, BF16 support, seed,
 and parameter count at startup, then trains, evaluates (val loss + masked accuracy), and
 checkpoints (model/optimizer/scheduler/step/RNG).
+
+## Platform & runtime (release prep)
+
+- Scientific settings (`model`, most of `train`) are separate from hardware/runtime
+  (`configs/platform/*`, the `runtime` config section, precision). Configs compose via
+  `extends:`. Startup prints the fully resolved runtime; optional perf features
+  (TF32/SDPA/pinned/persistent/non-blocking/fused-AdamW/torch.compile) are feature-detected,
+  optional, reported, and safely disabled when unavailable. **torch.compile is never on by
+  default. Do not add a hard FlashAttention dependency.**
+- Checkpoints are **immutable** `step_XXXXXX/` dirs + a `latest.json` pointer, atomic, with a
+  SHA-256 in `metadata.json` and verify-on-load. Do not reintroduce overwrite-heavy "last".
+- Never silently alter scientific settings based on platform.
+
+## Conservative DGX edit policy (must follow on the DGX Spark)
+
+- **GitHub `main` is the source of truth.** DGX begins from an exact tag or commit.
+- The **first DGX run must use a clean working tree**.
+- **Change config files before Python source.** Prefer config-only changes.
+- A DGX experiment may edit **at most one config file** and, **only if unavoidable, one Python
+  implementation file**.
+- Every DGX **source** edit must: happen **on a branch**, **pass `pytest -q`**, show `git diff`,
+  be **committed separately**, and be **pushed for Mac-side review**.
+- **No uncontrolled long training. No more than 200 benchmark steps** before explicit approval.
+- **No deletion of existing checkpoints by diagnostic scripts. No `sudo`/system-level changes.**
+- Do **not** claim DGX compatibility until an actual DGX run passes (readiness ≠ validation).
+
+See `docs/DGX_DEPLOYMENT.md` and `docs/RELEASE_CHECKLIST.md`.

@@ -62,16 +62,31 @@ def build_synthetic_examples(
     min_len: int,
     max_len: int,
     seed: int,
+    period: int = 3,
+    motif_vocab: int = 64,
 ) -> list[list[int]]:
-    """Generate deterministic random token sequences framed as [CLS] tokens... [SEP]."""
+    """Generate deterministic, *learnable* synthetic sequences.
+
+    Each sequence body is a short random motif of length ``period`` tiled to fill the
+    sequence, then framed as ``[CLS] body... [SEP]``. Because a masked token can be recovered
+    by copying the token ``period`` positions away (usually unmasked), an MLM has real signal:
+    training loss should fall and masked-token accuracy should rise. This makes the smoke run
+    a genuine end-to-end correctness check of the gradient/optimizer path — not just a
+    no-op over random noise.
+
+    ``motif_vocab`` caps the token range used for motifs (kept well below ``vocab_size``) so a
+    tiny model can learn the mapping quickly during a short smoke run.
+    """
     g = torch.Generator().manual_seed(seed)
     lo = specials.first_real_id
-    hi = vocab_size
+    hi = min(vocab_size, lo + max(2, motif_vocab))
+    period = max(1, min(period, max_len - 2))
     examples: list[list[int]] = []
     for _ in range(num_examples):
         length = int(torch.randint(min_len, max_len + 1, (1,), generator=g).item())
         body_len = max(1, length - 2)
-        body = torch.randint(lo, hi, (body_len,), generator=g).tolist()
+        motif = torch.randint(lo, hi, (period,), generator=g).tolist()
+        body = [motif[i % period] for i in range(body_len)]
         examples.append([specials.cls, *body, specials.sep])
     return examples
 
@@ -124,11 +139,27 @@ def build_masker(model_cfg: ModelConfig, train_cfg: TrainConfig,
     )
 
 
+def _loader_kwargs(runtime=None) -> dict:
+    """DataLoader performance kwargs from a resolved runtime (empty when none given).
+
+    ``runtime`` is a ``coordinator_bert.runtime.ResolvedRuntime`` whose values are already
+    feature-checked (persistent_workers only when num_workers>0, pin_memory only on CUDA).
+    """
+    if runtime is None:
+        return {}
+    kwargs = {"num_workers": int(getattr(runtime, "num_workers", 0)),
+              "pin_memory": bool(getattr(runtime, "pin_memory", False))}
+    if kwargs["num_workers"] > 0:
+        kwargs["persistent_workers"] = bool(getattr(runtime, "persistent_workers", False))
+    return kwargs
+
+
 def build_synthetic_dataloaders(
     model_cfg: ModelConfig,
     train_cfg: TrainConfig,
     data_cfg: DataConfig,
     specials: Optional[SpecialTokens] = None,
+    runtime=None,
 ) -> tuple[DataLoader, DataLoader, SpecialTokens]:
     """Build train/val dataloaders backed by the synthetic corpus."""
     specials = specials or SpecialTokens()
@@ -148,12 +179,14 @@ def build_synthetic_dataloaders(
     val_collator = MLMCollator(masker, specials.pad, train_cfg.max_seq_length,
                                seed=train_cfg.seed + 12345)
 
+    lk = _loader_kwargs(runtime)
     train_loader = DataLoader(
         TokenIdDataset(train_examples),
         batch_size=train_cfg.per_device_batch_size,
         shuffle=True,
         collate_fn=train_collator,
         drop_last=True,
+        **lk,
     )
     val_loader = DataLoader(
         TokenIdDataset(val_examples),
@@ -161,6 +194,7 @@ def build_synthetic_dataloaders(
         shuffle=False,
         collate_fn=val_collator,
         drop_last=False,
+        **lk,
     )
     return train_loader, val_loader, specials
 
@@ -169,6 +203,7 @@ def build_text_dataloaders(
     model_cfg: ModelConfig,
     train_cfg: TrainConfig,
     data_cfg: DataConfig,
+    runtime=None,
 ) -> tuple[DataLoader, DataLoader, SpecialTokens]:
     """Build dataloaders from a Hugging Face text dataset + tokenizer (optional path).
 
@@ -213,13 +248,14 @@ def build_text_dataloaders(
                                  seed=train_cfg.seed)
     val_collator = MLMCollator(masker, specials.pad, train_cfg.max_seq_length,
                                seed=train_cfg.seed + 12345)
+    lk = _loader_kwargs(runtime)
     train_loader = DataLoader(
         TokenIdDataset(train_examples), batch_size=train_cfg.per_device_batch_size,
-        shuffle=True, collate_fn=train_collator, drop_last=True,
+        shuffle=True, collate_fn=train_collator, drop_last=True, **lk,
     )
     val_loader = DataLoader(
         TokenIdDataset(val_examples), batch_size=train_cfg.per_device_batch_size,
-        shuffle=False, collate_fn=val_collator, drop_last=False,
+        shuffle=False, collate_fn=val_collator, drop_last=False, **lk,
     )
     return train_loader, val_loader, specials
 
@@ -228,8 +264,9 @@ def build_dataloaders(
     model_cfg: ModelConfig,
     train_cfg: TrainConfig,
     data_cfg: DataConfig,
+    runtime=None,
 ) -> tuple[DataLoader, DataLoader, SpecialTokens]:
     """Dispatch to the synthetic or text-dataset path based on config."""
     if data_cfg.dataset_name:
-        return build_text_dataloaders(model_cfg, train_cfg, data_cfg)
-    return build_synthetic_dataloaders(model_cfg, train_cfg, data_cfg)
+        return build_text_dataloaders(model_cfg, train_cfg, data_cfg, runtime=runtime)
+    return build_synthetic_dataloaders(model_cfg, train_cfg, data_cfg, runtime=runtime)

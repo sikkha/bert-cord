@@ -10,24 +10,55 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Kan" }]
+keywords = ["bert", "mlm", "pretraining", "coordination", "research"]
+
+# Core: only what is needed to import and run the model itself.
 dependencies = [
     "torch>=2.1",
-    "pyyaml>=6.0",
     "numpy>=1.24",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
-data = [
-    "datasets>=2.14",
-    "tokenizers>=0.15",
-    "accelerate>=0.27",
-]
+# Testing / development.
 dev = [
     "pytest>=7.4",
 ]
+# Full training loop (data, tokenizer, accelerate, safetensors, memory reporting).
+train = [
+    "accelerate>=0.27",
+    "datasets>=2.14",
+    "tokenizers>=0.15",
+    "safetensors>=0.4",
+    "psutil>=5.9",
+]
+# Learning-curve analysis figures. scipy is intentionally NOT here: the numpy-only curve
+# fitting path must keep working when scipy is absent (see scipy_optional extra below).
+analysis = [
+    "matplotlib>=3.6",
+]
+# Optional: scipy refines curve fits when present, but is never required.
+scipy_optional = [
+    "scipy>=1.10",
+]
+# Optional experiment tracking. NEVER required; W&B stays opt-in.
+wandb = [
+    "wandb>=0.16",
+]
+# Convenience aggregate for a full dev+train+analysis install (no wandb, no scipy).
+all = [
+    "coordinator-bert[dev,train,analysis]",
+]
+
+[project.urls]
+Homepage = "https://github.com/OWNER/bert_cord"
+Repository = "https://github.com/OWNER/bert_cord"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+coordinator_bert = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

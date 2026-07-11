@@ -1,0 +1,43 @@
+# DGX portability profile — EXACT same mathematical workload as configs/platform/mac_mps.yaml
+# (same seed, batch, seq length, optimizer, scheduler, mlm_probability). It differs ONLY in
+# device (CUDA) and precision (bf16 when supported). SDPA is left DISABLED so the attention
+# math matches the Mac comparison bit-for-bit. Use short runs for portability checks.
+tracking:
+  backend: wandb            # DGX default; offline needs no auth/network
+  mode: offline
+  project: bert-cord
+  job_type: portability
+
+runtime:
+  device: auto              # -> cuda on DGX
+  allow_tf32: false         # keep matmul math identical to the Mac comparison
+  pin_memory: false
+  num_workers: 0            # match the Mac dataloader for an apples-to-apples compare
+  persistent_workers: false
+  non_blocking: false
+  fused_adamw: false        # standard AdamW for exact portability
+  torch_compile: false
+
+# use_sdpa stays false (inherited from the model file) for exact attention-math portability.
+
+train:
+  precision: bf16           # only used when CUDA reports bf16 support; else fp32 fallback
+  seed: 42
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  max_grad_norm: 1.0
+  warmup_steps: 100
+  max_steps: 2000
+  lr_scheduler: cosine
+  min_lr_ratio: 0.1
+  per_device_batch_size: 16
+  gradient_accumulation_steps: 2
+  max_seq_length: 128
+  mlm_probability: 0.15
+  eval_every: 100
+  save_every: 200
+  eval_max_batches: 20
+  log_every: 20
