@@ -97,6 +97,46 @@ error, offline init, metric names/step, finish-on-exception, secret redaction, a
 artifacts-off-by-default. Verified with a live offline run (no network). Training is byte-
 identical with tracking off.
 
+## ADR-014: ONNX export + ONNX Runtime for portable MLM inference (Milestone 0.7)
+
+Date: 2026-07-11
+
+Status: accepted
+
+Context: We want portable, framework-neutral inference for the encoder-only MLM without the
+training stack, and a path toward GPU/other backends later — without changing the architecture
+or weakening the authoritative PyTorch checkpoints.
+
+Decision:
+- **Format = ONNX; runtime = ONNX Runtime.** The model is an encoder-only MLM (single forward,
+  per-position logits) — not autoregressive — so **vLLM / Ollama / llama.cpp** (decoder-only,
+  KV-cache, GGUF, chat serving) do not apply. ONNX Runtime runs the exact graph on CPU/GPU with
+  minimal deps and verifiable numerical parity.
+- **I/O contract:** inputs `input_ids`, `attention_mask`, `token_type_ids` (int64
+  `[batch, sequence]`); single output `logits` (float32 `[batch, sequence, vocab]`). A thin
+  `MLMInferenceWrapper` calls the model with `labels=None`, `return_probs=False` and returns the
+  logits tensor — no loss branch, no dict, no variable-length attention-prob output. Architecture
+  unchanged.
+- **Dynamic shapes:** `batch` and `sequence` are dynamic axes; `vocab` fixed. Verified by running
+  ORT at shapes different from the trace.
+- **Opset 18:** torch 2.13's exporter implements opset 18 natively; onnx≥1.16 / onnxruntime≥1.17
+  support it; lower opsets force a lossy down-conversion. torch 2.x routes `torch.onnx.export`
+  through the dynamo exporter (`torch.export.export`) even with `dynamic_axes`; that path produces
+  a checker-valid, ORT-executable graph here.
+- **Dependency strategy:** `onnx`, `onnxruntime`, `onnxscript` live in an optional `onnx` extra
+  (also folded into `all`); never core. Imported lazily with an actionable error if missing.
+- **Checkpoints stay authoritative:** ONNX is a derived inference artifact. Optimizer/scheduler/
+  RNG/loss/labels/checkpoint-manager logic are **not** exported. Artifacts (`exports/`, `*.onnx`,
+  `*.onnx.data`) are git-ignored; distribute via GitHub Releases / Hugging Face.
+
+Alternatives: TorchScript (rejected: still torch-bound, less portable); GGUF/llama.cpp (rejected:
+decoder-only LLM tooling, wrong model class); committing the artifact to Git (rejected: ~100 MB).
+
+Consequences: 17 ONNX tests (tiny model, ORT-dependent ones skip if packages absent) plus an
+inspected real 27.01M export + parity run (`max|Δ|≈7e-6`, top-5 agreement 1.00, dynamic axes).
+FP32 CPU only is validated; CoreML and `onnxruntime-gpu` remain untested (documented honestly).
+Large models externalize weights to a sibling `.onnx.data` file that must ship with the graph.
+
 ## ADR-009: Conservative, non-learned training-curve analysis + optional early stop
 
 Date: 2026-07-11

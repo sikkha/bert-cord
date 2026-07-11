@@ -371,3 +371,46 @@ wandb 0.28.0 | mode offline | no network | no login
 tests: 105 passed, 1 xfailed
 tracking default backend: none (no-op)
 ```
+
+---
+
+## EXP-006 — Milestone 0.7: ONNX export + parity (actual 27.01M model)
+
+Date: 2026-07-11. Hardware: Linux aarch64, CPU-only. Precision: FP32. Packages: torch
+2.13.0+cpu, onnx 1.22.0, onnxruntime 1.23.2, onnxscript 0.7.1. ORT provider:
+`CPUExecutionProvider` (available: Azure, CPU).
+
+- Config: `configs/bert_25m_mac.yaml` (model = 27.01M).
+- Checkpoint: `experiments/smoke/checkpoints` → resolved via `latest.json` to `step_000040`.
+- Export command:
+  `python scripts/export_onnx.py --config configs/bert_25m_mac.yaml
+  --checkpoint experiments/smoke/checkpoints --output exports/bert_cord_27m_mlm.onnx
+  --sequence-length 128`
+- **ONNX file size:** graph `bert_cord_27m_mlm.onnx` = 703,153 B (~0.69 MB); external weights
+  `bert_cord_27m_mlm.onnx.data` = 107,479,040 B (~102.5 MB); **total ≈ 108,182,193 B (103.17
+  MB)**. (Exporter externalizes FP32 weights; both files ship together.)
+- **ONNX checker:** PASSED (structural validation).
+- Opset: 18. Exporter: torch 2.13 dynamo path via `torch.onnx.export(dynamic_axes=…)`.
+- Parity command:
+  `python scripts/validate_onnx.py --config configs/bert_25m_mac.yaml
+  --checkpoint experiments/smoke/checkpoints --onnx-model exports/bert_cord_27m_mlm.onnx
+  --seq-lengths 128 64 --batch-sizes 1 3`
+- **Test input shapes:** (1,128), (3,128,pad2), (1,64,pad2), (3,64) → outputs `[b, s, 32000]`.
+- **Numerical parity:** `max|Δ| = 7.15e-6 … 8.11e-6`, `mean|Δ| ≈ 1.0e-6` (tolerances rtol=1e-3,
+  atol=2e-3 → passed by ~3 orders of magnitude). No NaN/Inf.
+- **Top-k agreement:** top-5 = **1.00** on all masked positions across all cases.
+- Dynamic axes: exercised across seq {64,128} × batch {1,3} → OK.
+- ORT inference: `predict_mask_onnx.py` ran at seq 24 and seq 48 (dynamic), reported providers,
+  output `[1,24,32000]` / `[1,48,32000]`; malformed mask position → clear error, exit 2.
+- Application-level parity: PyTorch `predict_mask.py` top-1 (id=62, p=0.0241) == ONNX top-1
+  (id=62, p=0.0241) on the same input.
+- Tests: **122 passed, 1 xfailed** (105+17 new ONNX; ORT-dependent tests skip if packages
+  absent). Baseline before ONNX work: 105 passed, 1 xfailed.
+
+Interpretation: the exported ONNX graph reproduces PyTorch MLM logits to FP32 numerical noise
+with identical top-k, under dynamic batch/sequence, on ONNX Runtime CPU. The artifact is
+inference-only (no training state).
+
+Limitations: **FP32 CPU only** was validated. Apple **CoreML** EP and NVIDIA
+**onnxruntime-gpu / CUDAExecutionProvider** were **not** run — untested. Checkpoint save/large
+external-data write inflated by the slow synced mount; not a code issue.

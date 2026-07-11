@@ -1,6 +1,32 @@
 # Current Status
 
-_Last updated: 2026-07-11 — Pre-GitHub release candidate (dual-platform Mac/DGX; DGX-ready)._
+_Last updated: 2026-07-11 — Milestone 0.7 (ONNX export + portable inference) complete on CPU._
+
+## Milestone 0.7 (ONNX export & portable inference) — verified
+
+- **Test suite: 122 passed, 1 xfailed** (105 + 17 new ONNX tests; ORT-dependent tests skip if
+  packages absent).
+- **ONNX export:** actual **27.01M** checkpoint exported to `exports/bert_cord_27m_mlm.onnx`
+  (+ `.onnx.data` external weights); total ≈ **103.17 MB**; opset 18; `onnx.checker` PASSED.
+- **ONNX Runtime CPU validation:** executes on `CPUExecutionProvider`; dynamic batch+sequence
+  confirmed.
+- **PyTorch↔ONNX parity:** `max|Δ| ≈ 7–8e-6` (rtol=1e-3, atol=2e-3), **top-5 agreement 1.00**,
+  no NaN/Inf, across seq {64,128} × batch {1,3} incl. padded cases. Application-level top-1
+  identical between `predict_mask.py` and `predict_mask_onnx.py`.
+- Scope: **MLM only.** Optimizer/scheduler/RNG/loss/labels are NOT exported; PyTorch checkpoints
+  remain authoritative. Docs: `docs/ONNX_EXPORT.md`.
+- **Mac CoreML: untested.** **DGX CUDA (`onnxruntime-gpu` / CUDAExecutionProvider): untested.**
+  Only FP32 CPU was actually run/validated.
+
+## Immediate next step
+
+On the DGX: `pip install onnxruntime-gpu`, re-run `scripts/validate_onnx.py` with
+`--providers CUDAExecutionProvider,CPUExecutionProvider`, record results (see
+`docs/DGX_DEPLOYMENT.md`); optionally test CoreML EP on the Mac. Then Milestone 1 (100M).
+
+---
+
+_Prior release-candidate state below (still current for non-ONNX items)._
 
 ## Release-prep state (verified)
 

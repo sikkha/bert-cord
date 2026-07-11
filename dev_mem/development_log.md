@@ -331,3 +331,50 @@ environment + checkpoint all present) — all with **no network**. See experimen
 Honest limits: DGX/online W&B not exercised on real hardware/account — offline path validated on
 CPU only. No secrets in repo; online auth uses the W&B CLI / `WANDB_API_KEY` env var, never read
 or committed by this project.
+
+---
+
+## Milestone 0.7: ONNX export and portable inference
+
+Date: 2026-07-11.
+
+Task: add a clean, tested ONNX export + ONNX Runtime inference path for `BertForMaskedLM`
+(masked-token prediction only). No architecture change; PyTorch checkpoints stay authoritative.
+
+Files added:
+- `src/coordinator_bert/onnx_export.py` — `MLMInferenceWrapper` (input_ids/attention_mask/
+  token_type_ids → logits), `export_to_onnx`, `export_checkpoint_to_onnx`, external-data size
+  accounting, ORT helpers (`create_ort_session`, `run_onnx_logits`, `torch_reference_logits`,
+  `compare_logits`, `topk_agreement`, `check_onnx_model`), lazy onnx/ort import + `OnnxDependencyError`.
+- `scripts/export_onnx.py`, `scripts/predict_mask_onnx.py`, `scripts/validate_onnx.py`.
+- `tests/test_onnx_export.py` (10), `tests/test_onnx_inference.py` (7).
+- `docs/ONNX_EXPORT.md`.
+Files modified: `pyproject.toml` (`onnx` extra + folded into `all`), `.gitignore`
+(`exports/`, `*.onnx`, `*.onnx.data`), `README.md`, `docs/RELEASE_CHECKLIST.md`, `CLAUDE.md`,
+`dev_mem/*`.
+
+Environment: torch 2.13.0+cpu, onnx 1.22.0, onnxruntime 1.23.2, onnxscript 0.7.1; CPU/FP32.
+
+Commands run (inspected):
+- `pip install -e ".[dev,train,analysis,onnx]"` — success; project imports without onnx (lazy).
+- `pytest` before ONNX work: 105 passed, 1 xfailed. After: **122 passed, 1 xfailed**.
+- Export actual 27.01M ckpt → SUCCESS, checker PASSED, total artifact **103.17 MB** (0.69 MB
+  graph + 102.5 MB `.onnx.data`).
+- `validate_onnx.py` → PASS: 4 cases, `max|Δ|≈7–8e-6`, top-5 agreement 1.00, dynamic axes OK.
+- `predict_mask_onnx.py` at seq 24 and 48 (dynamic); malformed input → clear non-zero exit.
+- PyTorch `predict_mask.py` still works; top-1 identical to ONNX output. See EXP-006.
+
+Actual export result: opset 18; inputs int64 `[batch,sequence]`; output `logits` float32
+`[batch,sequence,32000]`; dynamic batch+sequence. Parity within FP32 noise; top-k exact.
+
+Failures & fixes: (1) initial size report counted only the 0.69 MB graph — the dynamo exporter
+externalizes weights to `bert_cord_27m_mlm.onnx.data`; fixed `export_to_onnx` to sum the sibling
+`.data` file and report graph/external/total. (2) Chose opset 18 (not a lower guess) because
+torch 2.13 implements 18 natively and lower opsets trigger a lossy down-conversion.
+
+Unresolved / untested: **CoreML** (Mac) and **onnxruntime-gpu / CUDA EP** (DGX) not run — FP32
+CPU only validated. The ~100 MB artifact is git-ignored (distribute via Releases/HF).
+
+Next recommended step: on the DGX, install `onnxruntime-gpu`, re-run `validate_onnx.py` with
+`CUDAExecutionProvider`, and record BF16/FP16 ONNX behavior; optionally evaluate CoreML EP on the
+Mac. Then proceed toward Milestone 1 (100M) as previously planned.

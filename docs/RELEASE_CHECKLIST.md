@@ -22,6 +22,17 @@ Run through this before pushing `bert_cord` to GitHub and before any DGX bring-u
       authoritative.
 - [ ] `docs/WANDB_INTEGRATION.md` present and linked from README.
 
+## ONNX export & portable inference (optional)
+
+- [ ] `pip install -e ".[onnx]"` succeeds; project still imports without ONNX (lazy import).
+- [ ] Export of the actual 27.01M checkpoint succeeds and passes `onnx.checker`.
+- [ ] ONNX Runtime executes the model on CPU; providers reported.
+- [ ] PyTorch↔ONNX parity: shapes match, `max|Δ|` ≪ atol (2e-3), **top-k agreement = 1.00**,
+      no NaN/Inf, across ≥2 seq lengths and ≥2 batch sizes (dynamic axes).
+- [ ] `exports/`, `*.onnx`, `*.onnx.data` are git-ignored; artifact distributed via Releases/HF.
+- [ ] `docs/ONNX_EXPORT.md` present; opset + tolerances documented; MLM-only scope stated.
+- [ ] No CoreML / `onnxruntime-gpu` claims unless actually run on that hardware.
+
 ## Correctness
 
 - [ ] `python -m pytest -q` — all pass (+1 intentional distillation xfail).

@@ -41,13 +41,20 @@ analysis = [
 scipy_optional = [
     "scipy>=1.10",
 ]
+# Optional: ONNX export + portable ONNX Runtime inference (CPU). onnxscript is needed by the
+# torch 2.x ONNX exporter. Not part of the minimal runtime.
+onnx = [
+    "onnx>=1.16",
+    "onnxruntime>=1.17",
+    "onnxscript>=0.1",
+]
 # Optional experiment tracking. NEVER required; W&B stays opt-in.
 wandb = [
     "wandb>=0.16",
 ]
-# Convenience aggregate for a full dev+train+analysis install (no wandb, no scipy).
+# Convenience aggregate for a full dev+train+analysis+onnx install (no wandb, no scipy).
 all = [
-    "coordinator-bert[dev,train,analysis]",
+    "coordinator-bert[dev,train,analysis,onnx]",
 ]
 
 [project.urls]

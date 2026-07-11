@@ -27,6 +27,7 @@ scratch — **no Hugging Face `BertModel` / `AutoModelForMaskedLM` internals**. 
 - Inference utilities, tiny overfit test, synthetic evaluation, metrics logging.
 - **Heuristic learning-curve analysis** with static figures + JSON/Markdown reports.
 - **Environment diagnostics** and a **short training benchmark** with a bounded batch probe.
+- **ONNX export + portable ONNX Runtime inference** (CPU), with PyTorch↔ONNX parity validation.
 
 ## Installation
 
@@ -133,7 +134,17 @@ python scripts/analyze_training_curve.py --metrics experiments/run/metrics.jsonl
 python scripts/check_environment.py --json /tmp/env.json
 python scripts/benchmark_training.py --config configs/bert_25m_dgx_portability.yaml \
     --steps 50 --output-dir experiments/benchmarks/portability
+
+# ONNX export + portable inference (needs the `onnx` extra)
+python scripts/export_onnx.py --config configs/bert_25m_mac.yaml \
+    --checkpoint experiments/smoke/checkpoints --output exports/bert_cord_27m_mlm.onnx
+python scripts/validate_onnx.py --config configs/bert_25m_mac.yaml \
+    --checkpoint experiments/smoke/checkpoints --onnx-model exports/bert_cord_27m_mlm.onnx
+python scripts/predict_mask_onnx.py --model exports/bert_cord_27m_mlm.onnx --period 3 --seq-len 24
 ```
+
+ONNX export/inference is optional (`pip install -e ".[onnx]"`) and MLM-only; the PyTorch
+checkpoint stays authoritative. See [`docs/ONNX_EXPORT.md`](docs/ONNX_EXPORT.md).
 
 ## Experiment output layout
 

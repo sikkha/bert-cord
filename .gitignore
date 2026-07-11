@@ -40,6 +40,12 @@ checkpoints/
 *.safetensors
 *.bin
 
+# ---- Exported inference artifacts (distribute via GitHub Releases / HF, not Git history) ----
+exports/
+*.onnx
+*.onnx.data
+*.ort
+
 # ---- Generated analysis figures (tracked docs examples live under docs/ if any) ----
 *.png
 *.svg

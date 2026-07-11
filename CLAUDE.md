@@ -74,6 +74,12 @@ checkpoints (model/optimizer/scheduler/step/RNG).
 - Checkpoints are **immutable** `step_XXXXXX/` dirs + a `latest.json` pointer, atomic, with a
   SHA-256 in `metadata.json` and verify-on-load. Do not reintroduce overwrite-heavy "last".
 - Never silently alter scientific settings based on platform.
+- **ONNX (Milestone 0.7):** the ONNX artifact is an inference-only, MLM-only derivative — the
+  PyTorch checkpoint stays the training source of truth. Do not export optimizer/scheduler/RNG/
+  loss/labels. Keep `onnx`/`onnxruntime`/`onnxscript` in the optional `onnx` extra (never core).
+  ONNX artifacts (`exports/`, `*.onnx`, `*.onnx.data`) are git-ignored — distribute via GitHub
+  Releases / Hugging Face, not Git history. Do not claim CoreML or `onnxruntime-gpu` validation
+  unless actually run on that hardware.
 
 ## Conservative DGX edit policy (must follow on the DGX Spark)
 
