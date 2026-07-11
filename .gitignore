@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Testing / caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Checkpoints & experiment outputs (keep the smoke dir, ignore heavy artifacts)
+experiments/**/checkpoints/
+experiments/**/*.pt
+experiments/**/*.bin
+*.ckpt
+
+# Tokenizer artifacts
+artifacts/
+*.model
+
+# OS
+.DS_Store
+
+# Large source docs
+*.pdf
