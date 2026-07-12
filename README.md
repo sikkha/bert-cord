@@ -1,188 +1,585 @@
-# bert_cord — compact BERT coordinator (release candidate)
+# BERT-Cord — Compact BERT Coordinator Research Framework
 
-A purpose-built, very small **BERT-style encoder** for AI-coordination research. The long-term
-goal (`dev_mem/project_brief.md`) is a compact model (≤ ~200M params) that interprets system
-state and decides when to handle an event locally, delegate to a larger LLM, activate memory,
-request clarification, or control a task's lifecycle — without doing the full reasoning itself.
+[![Release](https://img.shields.io/github/v/release/sikkha/bert-cord?display_name=tag)](https://github.com/sikkha/bert-cord/releases)
+[![License](https://img.shields.io/github/license/sikkha/bert-cord)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.1%2B-EE4C2C.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![ONNX](https://img.shields.io/badge/ONNX-opset%2018-005CED.svg?logo=onnx&logoColor=white)](https://onnx.ai/)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-27M%20ONNX%20Model-yellow)](https://huggingface.co/sikkha/bert-cord-27m-mlm-onnx)
 
-**Current stage:** a clean, dual-platform (Apple Silicon **MPS** / NVIDIA **CUDA**) ~25M
-(actual **27.01M**) custom BERT **masked-language-model** pretraining system, plus evaluation,
-learning-curve analysis, benchmarking, and release tooling. The encoder is implemented from
-scratch — **no Hugging Face `BertModel` / `AutoModelForMaskedLM` internals**. HF `datasets`,
-`tokenizers`, and `accelerate` are used only for data, tokenization, and the training loop.
+A purpose-built, compact **BERT-style encoder** for AI-coordination research.
 
-> Coordination heads, teacher distillation, external-LLM routing, and voice are **not** part of
-> this stage (documented placeholders only).
+The long-term goal, documented in [`dev_mem/project_brief.md`](dev_mem/project_brief.md), is a model of no more than approximately 200 million parameters that interprets system state and helps determine whether an event should be:
 
-## What's implemented
+- handled locally;
+- delegated to a larger language model;
+- connected to semantic or working memory;
+- clarified with the user;
+- routed to a tool;
+- or used to update the lifecycle of an ongoing task.
 
-- Custom bidirectional multi-head self-attention (explicit softmax; optional PyTorch SDPA).
-- Learned token/position/(configurable) token-type embeddings; pre-/post-LN blocks; tied
-  input/output embeddings; dynamic 15% MLM with 80/10/10 replacement.
-- AdamW + warmup/cosine decay, gradient accumulation, deterministic seeds.
-- **Platform-aware runtime**: device (auto→cuda|mps|cpu), BF16-when-supported with fp32
-  fallback, TF32/SDPA/pinned-memory/persistent-workers/non-blocking/fused-AdamW/torch.compile —
-  all feature-detected, optional, reported at startup, and safely disabled when unavailable.
-- **Immutable, checksum-verified checkpoints** (`step_XXXXXX/` + `latest.json` pointer).
-- Inference utilities, tiny overfit test, synthetic evaluation, metrics logging.
-- **Heuristic learning-curve analysis** with static figures + JSON/Markdown reports.
-- **Environment diagnostics** and a **short training benchmark** with a bounded batch probe.
-- **ONNX export + portable ONNX Runtime inference** (CPU), with PyTorch↔ONNX parity validation.
+The coordinator is not intended to perform all reasoning itself. It is intended to become a small learned control component inside a larger modular cognitive architecture.
+
+> **Current scope:** the released 27.01M model is a synthetic masked-language-model baseline. It is not yet the mini-amygdala coordinator and currently performs no learned delegation, routing, memory activation, task control, or general-language understanding.
+
+## Public resources
+
+- **Source repository:** [github.com/sikkha/bert-cord](https://github.com/sikkha/bert-cord)
+- **Latest GitHub release:** [BERT-Cord 27M ONNX Baseline](https://github.com/sikkha/bert-cord/releases)
+- **Hugging Face model:** [sikkha/bert-cord-27m-mlm-onnx](https://huggingface.co/sikkha/bert-cord-27m-mlm-onnx)
+- **Experiment tracking:** [Weights & Biases — bert-cord](https://wandb.ai/sikkha/bert-cord)
+
+## Current stage
+
+The project currently provides a dual-platform, approximately 25M-parameter custom BERT implementation with an actual parameter count of:
+
+```text
+27,010,304 parameters
+```
+
+The current system includes:
+
+- masked-language-model pretraining;
+- deterministic synthetic experiments;
+- checkpoint and resume support;
+- inference and evaluation utilities;
+- learning-curve analysis;
+- W&B integration;
+- platform-aware Mac and DGX configuration;
+- ONNX export;
+- ONNX Runtime inference;
+- reproducible Hugging Face packaging.
+
+The encoder is implemented from scratch. It does **not** use Hugging Face `BertModel` or `AutoModelForMaskedLM` internals.
+
+Hugging Face `datasets`, `tokenizers`, and `accelerate` are used only for data preparation, tokenization, and training infrastructure.
+
+Teacher distillation, coordination heads, external-LLM routing, persistent memory activation, and voice integration remain future milestones.
+
+## Milestones
+
+- ✅ Milestone 0 — custom 27M BERT MLM foundation
+- ✅ Platform-aware Mac MPS and DGX CUDA runtime
+- ✅ Checkpoint, resume, and deterministic evaluation
+- ✅ Learning-curve analysis and training diagnostics
+- ✅ Weights & Biases integration
+- ✅ ONNX export and portable ONNX Runtime inference
+- ✅ Reproducible Hugging Face ONNX packaging
+- 🚧 DGX validation and larger-scale training
+- ⏳ Teacher distillation
+- ⏳ Learned coordination heads
+- ⏳ External-LLM and tool routing
+- ⏳ Mini-amygdala coordinator
+- ⏳ Integration into AI Blue
+
+```text
+27M MLM baseline
+       │
+       ▼
+DGX validation and scaling
+       │
+       ▼
+Teacher distillation
+       │
+       ▼
+Coordination heads
+       │
+       ▼
+Mini-amygdala coordinator
+       │
+       ▼
+AI Blue cognitive architecture
+```
+
+## What is implemented
+
+- Custom bidirectional multi-head self-attention.
+- Explicit attention softmax with optional PyTorch SDPA.
+- Learned token, position, and configurable token-type embeddings.
+- Configurable pre-layer-normalization and post-layer-normalization blocks.
+- Tied input and output embeddings.
+- Dynamic 15% masked-language-model corruption using the standard 80/10/10 replacement policy.
+- AdamW optimization with warm-up and cosine decay.
+- Gradient accumulation and deterministic random seeds.
+- Platform-aware runtime resolution:
+  - CUDA;
+  - Apple MPS;
+  - CPU fallback.
+- Feature-detected and optional:
+  - BF16;
+  - TF32;
+  - SDPA;
+  - pinned memory;
+  - persistent workers;
+  - non-blocking transfer;
+  - fused AdamW;
+  - `torch.compile`.
+- Immutable, checksum-verified checkpoints using:
+  - `step_XXXXXX/`;
+  - `latest.json`.
+- Synthetic inference and evaluation utilities.
+- Tiny-batch overfit capacity test.
+- Metrics logging and static learning-curve reports.
+- Environment diagnostics and bounded batch probing.
+- Optional W&B online and offline experiment tracking.
+- ONNX opset-18 export with dynamic batch and sequence axes.
+- PyTorch-to-ONNX numerical and top-k parity validation.
+- Standalone ONNX Runtime inference.
+- Reproducible Hugging Face model-repository packaging.
 
 ## Installation
 
-Core is minimal (`torch`, `numpy`, `pyyaml`). Everything else is an extra.
+The core installation is intentionally minimal:
+
+- `torch`
+- `numpy`
+- `pyyaml`
+
+Everything else is provided through optional extras.
 
 ```bash
-# minimal runtime (import + run the model)
+# Minimal runtime
 python -m pip install -e .
 
-# development + full training + analysis (recommended)
+# Development, tests, training, and analysis
 python -m pip install -e ".[dev,train,analysis]"
 
-# optional extras
-python -m pip install -e ".[scipy_optional]"   # refines curve fits (numpy path works without)
-python -m pip install -e ".[dev,train,analysis,wandb]"   # + optional W&B tracking (never required)
+# ONNX export and ONNX Runtime inference
+python -m pip install -e ".[onnx]"
+
+# Optional W&B tracking
+python -m pip install -e ".[dev,train,analysis,wandb]"
+
+# Optional SciPy refinement for learning-curve fitting
+python -m pip install -e ".[scipy_optional]"
+
+# Full development, training, analysis, and ONNX environment
+python -m pip install -e ".[all]"
 ```
 
-Optional experiment tracking is off by default (`tracking.backend: none`). Enable W&B with
-`--wandb --wandb-mode offline` (no login/network needed offline); see
-[`docs/WANDB_INTEGRATION.md`](docs/WANDB_INTEGRATION.md). Local JSONL metrics + curve analysis
-remain the source of truth.
+Available extras:
 
-Extras: `dev` (pytest) · `train` (accelerate, datasets, tokenizers, safetensors, psutil) ·
-`analysis` (matplotlib) · `scipy_optional` · `wandb` · `all` (= dev+train+analysis).
+| Extra | Purpose |
+|---|---|
+| `dev` | Pytest and development checks |
+| `train` | Accelerate, datasets, tokenizers, safetensors, and system reporting |
+| `analysis` | Matplotlib learning-curve visualization |
+| `onnx` | ONNX export, ONNX Runtime inference, and ONNX Script |
+| `wandb` | Optional Weights & Biases experiment tracking |
+| `scipy_optional` | Optional refinement of curve fitting |
+| `all` | `dev + train + analysis + onnx` |
 
-### MacBook (Apple Silicon) development
+W&B is disabled by default:
+
+```yaml
+tracking:
+  backend: none
+```
+
+Enable offline tracking without login or network access:
 
 ```bash
-git clone <repo-url> bert_cord && cd bert_cord
-python3 -m venv .venv && source .venv/bin/activate
-python -m pip install -e ".[dev,train,analysis]"
-python scripts/check_environment.py            # expect device: mps
-python -m pytest -q
-python scripts/pretrain_mlm.py --config configs/bert_25m_mac.yaml --smoke --max-steps 40
+python scripts/pretrain_mlm.py \
+  --config configs/bert_25m_mac.yaml \
+  --smoke \
+  --max-steps 40 \
+  --wandb \
+  --wandb-mode offline
 ```
 
-### DGX Spark (CUDA) installation
+See [`docs/WANDB_INTEGRATION.md`](docs/WANDB_INTEGRATION.md).
+
+Local JSONL metrics and generated reports remain the authoritative local experiment records.
+
+## MacBook development
 
 ```bash
-git clone <repo-url> bert_cord && cd bert_cord
-python3 -m venv .venv && source .venv/bin/activate
-python -m pip install -e ".[dev,train,analysis]"
-python scripts/check_environment.py --require dgx   # must exit 0 on DGX
+git clone git@github.com:sikkha/bert-cord.git
+cd bert-cord
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e ".[dev,train,analysis,onnx]"
+
+python scripts/check_environment.py
+python -m pytest -q
+
+python scripts/pretrain_mlm.py \
+  --config configs/bert_25m_mac.yaml \
+  --smoke \
+  --max-steps 40
+```
+
+The expected resolved device on Apple Silicon is:
+
+```text
+mps
+```
+
+## DGX Spark installation
+
+```bash
+git clone git@github.com:sikkha/bert-cord.git
+cd bert-cord
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e ".[dev,train,analysis,wandb,onnx]"
+
+python scripts/check_environment.py --require dgx
 python -m pytest -q
 ```
 
-See **`docs/DGX_DEPLOYMENT.md`** for the full DGX procedure, acceptance criteria, and the
-conservative edit policy.
+See [`docs/DGX_DEPLOYMENT.md`](docs/DGX_DEPLOYMENT.md) for the complete deployment procedure, acceptance criteria, and conservative DGX edit policy.
 
-## Development pipeline (required order)
+## Required development pipeline
 
-1. **environment check** — `scripts/check_environment.py` (`--require dgx` on DGX)
-2. **tests** — `python -m pytest -q`
-3. **portability benchmark** — `scripts/benchmark_training.py --config configs/bert_25m_dgx_portability.yaml --steps 50 ...`
-4. **checkpoint / resume test** — a short smoke run + resume from the checkpoint
-5. **throughput benchmark** — `scripts/benchmark_training.py --config configs/bert_25m_dgx_throughput.yaml --steps 200 ...`
-6. **only then** longer training.
+Run validation in this order:
+
+1. **Environment check**
+
+   ```bash
+   python scripts/check_environment.py --require dgx
+   ```
+
+2. **Test suite**
+
+   ```bash
+   python -m pytest -q
+   ```
+
+3. **Portability benchmark**
+
+   ```bash
+   python scripts/benchmark_training.py \
+     --config configs/bert_25m_dgx_portability.yaml \
+     --steps 50 \
+     --output-dir experiments/benchmarks/dgx_portability
+   ```
+
+4. **Checkpoint and resume test**
+
+5. **Throughput benchmark**
+
+   ```bash
+   python scripts/benchmark_training.py \
+     --config configs/bert_25m_dgx_throughput.yaml \
+     --steps 200 \
+     --output-dir experiments/benchmarks/dgx_throughput
+   ```
+
+6. **Longer training only after all earlier gates pass**
 
 ## Configuration
 
-Scientific settings (`model`, most of `train`) are separate from hardware/runtime (`runtime`,
-precision, dataloader perf). Configs compose via an `extends:` list:
+Scientific settings are separated from runtime and hardware settings.
 
-```
+Configs compose using `extends:`:
+
+```text
 configs/
-├── model/{bert_25m,bert_100m,bert_200m}.yaml        # scientific model definition
-├── platform/{mac_mps,dgx_portability,dgx_throughput}.yaml   # runtime + train envelope
-├── experiments/{smoke_mac,smoke_dgx,synthetic_500,real_text_sanity}.yaml
-├── examples/minimal.yaml
-├── bert_25m_mac.yaml            # resolved: model + platform (self-contained)
+├── model/
+│   ├── bert_25m.yaml
+│   ├── bert_100m.yaml
+│   └── bert_200m.yaml
+├── platform/
+│   ├── mac_mps.yaml
+│   ├── dgx_portability.yaml
+│   └── dgx_throughput.yaml
+├── experiments/
+│   ├── smoke_mac.yaml
+│   ├── smoke_dgx.yaml
+│   ├── synthetic_500.yaml
+│   └── real_text_sanity.yaml
+├── examples/
+│   └── minimal.yaml
+├── bert_25m_mac.yaml
 ├── bert_25m_dgx_portability.yaml
 ├── bert_25m_dgx_throughput.yaml
-├── bert_100m_dgx.yaml / bert_200m_dgx.yaml          # PROVISIONAL — do not full-train yet
-└── bert_25m.yaml / bert_100m.yaml / bert_200m.yaml  # legacy flat configs (still supported)
+├── bert_100m_dgx.yaml
+├── bert_200m_dgx.yaml
+├── bert_25m.yaml
+├── bert_100m.yaml
+└── bert_200m.yaml
 ```
 
-The **portability** profile keeps the exact same mathematical workload as the Mac run (same
-seed/batch/seq/optimizer/scheduler, SDPA off) and differs only in device + precision (bf16).
-The **throughput** profile intentionally enables performance features and a larger workload.
-The fully resolved settings that materially affect training are **printed at startup**.
+The 100M and 200M DGX profiles remain provisional.
 
-## Run
+The portability profile preserves the same mathematical workload as the Mac run while changing only device and precision settings.
+
+The throughput profile intentionally enables performance features and a larger workload.
+
+Resolved settings that materially affect training are printed at startup.
+
+## Training and evaluation
+
+### Smoke training
 
 ```bash
-# Smoke training (synthetic; no network)
-python scripts/pretrain_mlm.py --config configs/bert_25m_mac.yaml --smoke --max-steps 40
-
-# Resume (follows latest.json in the checkpoint root, verifies checksum)
-python scripts/pretrain_mlm.py --config configs/bert_25m_mac.yaml --smoke --max-steps 80 \
-    --resume experiments/smoke_mac/checkpoints
-
-# Inference, synthetic eval, overfit capacity check
-python scripts/predict_mask.py --config configs/bert_25m.yaml --checkpoint <ckpt> --topk 5
-python scripts/evaluate_synthetic.py --config configs/bert_25m.yaml --checkpoint <ckpt>
-python scripts/overfit_tiny.py --config configs/bert_25m.yaml
-
-# Metrics logging + learning-curve analysis
-python scripts/pretrain_mlm.py --config configs/bert_25m_mac.yaml --smoke --max-steps 40 \
-    --metrics-file experiments/run/metrics.jsonl
-python scripts/analyze_training_curve.py --metrics experiments/run/metrics.jsonl \
-    --future-step 1000 --future-step 2000 --plot --show-confidence
-
-# Environment report + benchmark
-python scripts/check_environment.py --json /tmp/env.json
-python scripts/benchmark_training.py --config configs/bert_25m_dgx_portability.yaml \
-    --steps 50 --output-dir experiments/benchmarks/portability
-
-# ONNX export + portable inference (needs the `onnx` extra)
-python scripts/export_onnx.py --config configs/bert_25m_mac.yaml \
-    --checkpoint experiments/smoke/checkpoints --output exports/bert_cord_27m_mlm.onnx
-python scripts/validate_onnx.py --config configs/bert_25m_mac.yaml \
-    --checkpoint experiments/smoke/checkpoints --onnx-model exports/bert_cord_27m_mlm.onnx
-python scripts/predict_mask_onnx.py --model exports/bert_cord_27m_mlm.onnx --period 3 --seq-len 24
+python scripts/pretrain_mlm.py \
+  --config configs/bert_25m_mac.yaml \
+  --smoke \
+  --max-steps 40
 ```
 
-ONNX export/inference is optional (`pip install -e ".[onnx]"`) and MLM-only; the PyTorch
-checkpoint stays authoritative. See [`docs/ONNX_EXPORT.md`](docs/ONNX_EXPORT.md).
-
-### Hugging Face ONNX package (local staging; manual upload)
-
-Build a self-contained HF model-repo package for the ONNX baseline (no upload, no auth):
+### Resume training
 
 ```bash
-python scripts/build_hf_onnx_package.py --config configs/bert_25m_mac.yaml \
-    --onnx-model exports/bert_cord_27m_mlm.onnx --output bert-cord-27m-mlm-onnx \
-    --repo-id sikkha/bert-cord-27m-mlm-onnx --package-version 0.1.2-hf-onnx
-python scripts/validate_hf_onnx_package.py bert-cord-27m-mlm-onnx
+python scripts/pretrain_mlm.py \
+  --config configs/bert_25m_mac.yaml \
+  --smoke \
+  --max-steps 80 \
+  --resume experiments/smoke_mac/checkpoints
 ```
 
-The staging dir `bert-cord-27m-mlm-onnx/` is git-ignored. Future HF repo: `sikkha/bert-cord-27m-mlm-onnx`.
-Upload is manual — see [`docs/HUGGINGFACE_ONNX_RELEASE.md`](docs/HUGGINGFACE_ONNX_RELEASE.md).
-This is a **synthetic MLM baseline** (no tokenizer, no language understanding), not the coordinator.
+Checkpoint roots are resolved through `latest.json`, with checksum verification.
+
+### PyTorch inference
+
+```bash
+python scripts/predict_mask.py \
+  --config configs/bert_25m.yaml \
+  --checkpoint <checkpoint-path> \
+  --topk 5
+```
+
+### Synthetic evaluation
+
+```bash
+python scripts/evaluate_synthetic.py \
+  --config configs/bert_25m.yaml \
+  --checkpoint <checkpoint-path>
+```
+
+### Tiny overfit-capacity test
+
+```bash
+python scripts/overfit_tiny.py \
+  --config configs/bert_25m.yaml
+```
+
+## Metrics and learning-curve analysis
+
+Generate metrics:
+
+```bash
+python scripts/pretrain_mlm.py \
+  --config configs/bert_25m_mac.yaml \
+  --smoke \
+  --max-steps 40 \
+  --metrics-file experiments/run/metrics.jsonl
+```
+
+Analyze and visualize:
+
+```bash
+python scripts/analyze_training_curve.py \
+  --metrics experiments/run/metrics.jsonl \
+  --future-step 1000 \
+  --future-step 2000 \
+  --plot \
+  --show-confidence
+```
+
+The forecasting component is heuristic. It does not guarantee the optimal stopping point and should not replace scientific validation.
+
+See [`docs/training_curve_analysis.md`](docs/training_curve_analysis.md).
+
+## Environment diagnostics and benchmarking
+
+```bash
+python scripts/check_environment.py \
+  --json /tmp/bert-cord-environment.json
+```
+
+```bash
+python scripts/benchmark_training.py \
+  --config configs/bert_25m_dgx_portability.yaml \
+  --steps 50 \
+  --output-dir experiments/benchmarks/portability
+```
+
+## ONNX export and portable inference
+
+Install the ONNX extra:
+
+```bash
+python -m pip install -e ".[onnx]"
+```
+
+Export:
+
+```bash
+python scripts/export_onnx.py \
+  --config configs/bert_25m_mac.yaml \
+  --checkpoint experiments/smoke/checkpoints \
+  --output exports/bert_cord_27m_mlm.onnx
+```
+
+Validate PyTorch-to-ONNX parity:
+
+```bash
+python scripts/validate_onnx.py \
+  --config configs/bert_25m_mac.yaml \
+  --checkpoint experiments/smoke/checkpoints \
+  --onnx-model exports/bert_cord_27m_mlm.onnx
+```
+
+Run ONNX Runtime inference:
+
+```bash
+python scripts/predict_mask_onnx.py \
+  --model exports/bert_cord_27m_mlm.onnx \
+  --period 3 \
+  --seq-len 24 \
+  --topk 5
+```
+
+The exported model uses:
+
+```text
+ONNX opset:       18
+Precision:        FP32
+Dynamic batch:    yes
+Dynamic sequence: yes
+Validated runtime: ONNX Runtime CPUExecutionProvider
+```
+
+The 27M export consists of two files:
+
+```text
+bert_cord_27m_mlm.onnx
+bert_cord_27m_mlm.onnx.data
+```
+
+Both files are required.
+
+The PyTorch checkpoint remains the authoritative training source. ONNX is a derived inference artifact.
+
+See [`docs/ONNX_EXPORT.md`](docs/ONNX_EXPORT.md).
+
+## Hugging Face ONNX package
+
+The released ONNX package is available at:
+
+[https://huggingface.co/sikkha/bert-cord-27m-mlm-onnx](https://huggingface.co/sikkha/bert-cord-27m-mlm-onnx)
+
+Build a fresh local package:
+
+```bash
+python scripts/build_hf_onnx_package.py \
+  --config configs/bert_25m_mac.yaml \
+  --onnx-model exports/bert_cord_27m_mlm.onnx \
+  --output dist/bert-cord-27m-mlm-onnx \
+  --repo-id sikkha/bert-cord-27m-mlm-onnx \
+  --package-version 0.1.2-hf-onnx \
+  --model-source-commit 0e17db558ebcce29f40b49d546af8b2704640230 \
+  --model-source-tag v0.1.1-onnx
+```
+
+Validate the package:
+
+```bash
+python scripts/validate_hf_onnx_package.py \
+  dist/bert-cord-27m-mlm-onnx
+```
+
+Run standalone packaged inference:
+
+```bash
+python dist/bert-cord-27m-mlm-onnx/inference.py
+```
+
+The package records separate provenance for:
+
+- the model-export source;
+- the packaging-tool source;
+- the model source tag;
+- the packaging release tag.
+
+This is a generic ONNX Runtime model repository. It is not compatible with `transformers.AutoModel` and includes no natural-language tokenizer.
+
+See [`docs/HUGGINGFACE_ONNX_RELEASE.md`](docs/HUGGINGFACE_ONNX_RELEASE.md).
 
 ## Experiment output layout
 
-```
+```text
 experiments/<run_id>/
-├── environment.json          resolved_config.yaml   metrics.jsonl
-├── analysis/{analysis_summary.json, training_curve_report.md, plots/}
-├── checkpoints/{step_XXXXXX/, latest.json}
+├── environment.json
+├── resolved_config.yaml
+├── metrics.jsonl
+├── analysis/
+│   ├── analysis_summary.json
+│   ├── training_curve_report.md
+│   └── plots/
+├── checkpoints/
+│   ├── step_XXXXXX/
+│   └── latest.json
 └── run_report.md
 ```
 
-Generated experiment outputs are **git-ignored**; a tiny fixture
-(`tests/fixtures/curve_metrics.jsonl`) is tracked for testing the analyzer.
+Generated experiment outputs are excluded from Git.
 
-## Status
+A small fixture at:
 
-Verified on CPU/fp32 (development) and Apple-Silicon-ready. **88 tests pass (+1 intentional
-xfail).** The CUDA/BF16 path is feature-detected and unit-tested via mocks but has **not** been
-run on real NVIDIA hardware yet — that is **DGX readiness, not DGX validation** (see
-`docs/DGX_DEPLOYMENT.md`). Docs on the analyzer: `docs/training_curve_analysis.md`; release
-steps: `docs/RELEASE_CHECKLIST.md`.
+```text
+tests/fixtures/curve_metrics.jsonl
+```
+
+is tracked for learning-curve analyzer tests.
+
+## Verified status
+
+Current verified test result:
+
+```text
+139 passed, 1 intentional xfail
+```
+
+Validated:
+
+- Apple Silicon MPS training path;
+- CPU FP32 development;
+- checkpoint and resume behavior;
+- synthetic evaluation;
+- W&B online and offline tracking;
+- ONNX structural validation;
+- ONNX Runtime CPU inference;
+- dynamic batch and sequence axes;
+- PyTorch-to-ONNX top-5 parity;
+- reproducible Hugging Face packaging;
+- package checksum and leak validation;
+- standalone downloaded-model inference path.
+
+Not yet validated on physical DGX hardware:
+
+- real CUDA/BF16 training;
+- ONNX Runtime CUDAExecutionProvider;
+- FP16 ONNX inference;
+- BF16 ONNX inference;
+- TensorRT;
+- CoreML execution provider.
+
+The CUDA and BF16 paths are feature-detected and covered through configuration and mocked tests, but this is currently **DGX readiness**, not yet **DGX validation**.
+
+## Release history
+
+| Release | Description |
+|---|---|
+| `v0.1.0-dgx-ready` | Mac-verified baseline prepared for DGX deployment |
+| `v0.1.1-onnx` | ONNX export and portable inference |
+| `v0.1.2-hf-package` | Reproducible Hugging Face ONNX package tooling |
 
 ## License
 
-Apache-2.0. Reference implementations consulted (ideas only, not copied): `barneyhill/minBERT`,
-Hugging Face Transformers `run_mlm_no_trainer.py`, `google-research/bert`.
+Apache-2.0.
+
+Reference implementations consulted for architectural ideas only; no source was copied:
+
+- `barneyhill/minBERT`
+- Hugging Face Transformers `run_mlm_no_trainer.py`
+- `google-research/bert`
