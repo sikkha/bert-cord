@@ -178,6 +178,48 @@ validity, independent inference, missing-`.onnx.data` failure, and validator rej
 forbidden files / checksum mismatch / absolute-path & secret leaks. The real package builds and
 validates 17/17 offline. Upload remains a documented manual step.
 
+## ADR-016: Config-driven tokenizer pipeline (Tokenizer Milestone)
+
+Date: 2026-07-13
+
+Status: accepted
+
+Context: BERT-Cord needs a reproducible tokenizer-training pipeline. The tokenizer will later be
+**frozen** and reused for all MLM pretraining, so the pipeline (not immediate quality) is the
+priority. The existing `scripts/train_tokenizer.py` was WordPiece-only and not config-driven.
+
+Decision:
+- **Corpus prep** in `src/coordinator_bert/corpus.py` (+ `scripts/prepare_tokenizer_corpus.py`):
+  reads txt/md/jsonl and optional streamed HF datasets; Unicode-normalizes, drops empties,
+  exact-dedups (SHA-1), deterministically shuffles (seeded), computes per-script language stats,
+  and writes sharded output + `corpus_manifest.json` (per-file SHA-256) + `corpus_report.md`.
+- **Config-driven trainer** in `src/coordinator_bert/tokenizer_train.py` (extends the CLI, keeps
+  a legacy single-file WordPiece mode) supporting three algorithms — **byte-level BPE, Unigram
+  (+byte fallback, Metaspace), WordPiece** — selected via `configs/tokenizer/*.yaml`
+  (vocab_size, normalization, lowercase, byte_fallback, special tokens). Special tokens are
+  **pinned to ids 0–4** ([PAD],[CLS],[SEP],[MASK],[UNK]) to match
+  `coordinator_bert.data.SpecialTokens`; training **fails** if that integrity check fails. Output
+  artifact dir has tokenizer.json, tokenizer_config.json, special_tokens_map.json,
+  tokenizer_manifest.json, README.md.
+- **Evaluation** in `src/coordinator_bert/tokenizer_eval.py` (+ `scripts/evaluate_tokenizer.py`):
+  unknown-token rate, tokens/sentence, tokens/word, round-trip (exact + whitespace-normalized),
+  vocabulary utilization, reserved-token integrity → evaluation.json + evaluation.md.
+- **Corpus size policy:** real multilingual corpora (EN/TH Wikipedia, OSCAR, mC4, FineWeb, CC100)
+  exceed 1 GB, so **nothing large was downloaded**; `docs/recommended_corpus.md` lists ids,
+  sizes, subsets, and exact DGX download commands. A ~2.6 KB local sample corpus (git-ignored)
+  makes the pipeline runnable/testable offline.
+- **No AutoModel / language-understanding claim.** Tokenizer artifacts and corpus outputs are
+  git-ignored (`data/`, `artifacts/`); the frozen tokenizer will be a release artifact.
+
+Alternatives: WordPiece-only (rejected: byte-BPE avoids UNK, Unigram suits Thai); committing
+corpus/tokenizer artifacts (rejected: large + reproducible from config); auto-downloading
+Wikipedia/OSCAR (rejected: >1 GB, per policy).
+
+Consequences: 9 tokenizer tests (tiny fixtures) cover language detection, dedup, deterministic
+shuffle, train/load/round-trip/specials for all three algorithms, YAML config, and evaluation
+metrics. Full suite 148 passed, 1 xfailed. The three algorithms remain candidates; one will be
+selected and frozen after evaluation on the real corpus.
+
 ## ADR-009: Conservative, non-learned training-curve analysis + optional early stop
 
 Date: 2026-07-11

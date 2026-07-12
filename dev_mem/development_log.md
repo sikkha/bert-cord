@@ -455,3 +455,41 @@ Changes:
 Verification: **139 passed, 1 xfailed**. Committed the packaging tools and tagged
 `v0.1.2-hf-package`; rebuilt the package from a fresh path; re-ran validator (17/17) and
 standalone inference. See experiment_log EXP-008. Nothing uploaded; no HF auth; no network.
+
+---
+
+## Tokenizer Milestone: reproducible tokenizer pipeline
+
+Date: 2026-07-13.
+
+Task: build a reproducible, config-driven tokenizer-training pipeline (corpus prep → train →
+evaluate). No git commit — changes left unstaged for manual review.
+
+Files added:
+- `src/coordinator_bert/corpus.py` — corpus reading/normalization/dedup/shuffle/stats/manifest.
+- `src/coordinator_bert/tokenizer_train.py` — config-driven trainer (byte_bpe / unigram /
+  wordpiece; special tokens pinned to ids 0–4; artifact dir writer).
+- `src/coordinator_bert/tokenizer_eval.py` — intrinsic metrics.
+- `scripts/prepare_tokenizer_corpus.py`, `scripts/evaluate_tokenizer.py`.
+- `configs/tokenizer/bert_cord_{wordpiece,byte_bpe,unigram}_32k.yaml`.
+- `tests/test_tokenizer_pipeline.py` (9 tests).
+- `docs/tokenizer_pipeline.md`, `docs/recommended_corpus.md`.
+Files modified:
+- `scripts/train_tokenizer.py` — extended to config-driven (kept legacy WordPiece single-file
+  mode).
+Local (git-ignored) outputs created for the demo/tests: `data/raw/samples/*` (hand-made sample),
+`data/tokenizer_corpus/*`, `artifacts/tokenizers/bert-cord-*/*`.
+
+Commands run (inspected): corpus prep on the sample; trained all three algorithms; evaluated all
+three; full `pytest` → **148 passed, 1 xfailed**. See experiment_log EXP-009 for metrics.
+
+Corpus download: real multilingual corpora exceed 1 GB → **not downloaded**; `docs/recommended_
+corpus.md` gives ids/sizes/subsets and exact DGX download commands. HF Hub was reachable but
+`datasets 5.0.0` streaming had a URI quirk for the bare `wikitext` id (documented).
+
+Constraints honored: no git commit/push/history change; all changes left unstaged; no large
+download; existing PyTorch/ONNX behavior unchanged; no AutoModel/coordination/language claims.
+
+Next recommended step: on the DGX, download a bounded multilingual corpus (per
+`docs/recommended_corpus.md`), train all three 32k tokenizers on it, evaluate, then **select and
+freeze** one for MLM pretraining.

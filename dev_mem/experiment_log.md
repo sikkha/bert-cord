@@ -501,3 +501,45 @@ Honest limitations (unchanged + new):
   `rm -f .git/index.lock .git/HEAD.lock && git add -A && git commit -m "…" && git tag -a
   v0.1.2-hf-package -m "…"` completes it; then `packaging_source_commit` becomes the new hash.
 - Still CPU/FP32 only; CUDA/CoreML/FP16/BF16 unvalidated. Not a coordinator; synthetic MLM baseline.
+
+---
+
+## EXP-009 — Tokenizer Milestone: pipeline validation on sample corpus
+
+Date: 2026-07-13. Linux aarch64, CPU. tokenizers 0.23.1, datasets 5.0.0. Offline (no large
+download). Goal: robust engineering pipeline, not tokenizer quality.
+
+- Corpus prep: `prepare_tokenizer_corpus.py --input data/raw --output-dir data/tokenizer_corpus
+  --val-fraction 0.1 --shard-size 100` on a ~2.6 KB hand-made multilingual sample (EN + Thai +
+  markdown + jsonl/code). Result: 29 docs read/kept (0 dup on this set), languages {latin:22,
+  thai:7}, 26 train docs in 1 shard + 3 validation; manifest + report written.
+- Trained all three algorithms (vocab_size 32000 requested; tiny corpus → small actual vocab):
+  | algo | actual vocab | special ids | note |
+  |---|---:|---|---|
+  | wordpiece | 361 | 0–4 OK | BERT normalizer |
+  | byte_bpe  | 495 | 0–4 OK | byte-level, no UNK |
+  | unigram   | 321 | 0–4 OK | Metaspace + byte fallback |
+  Each wrote tokenizer.json + tokenizer_config.json + special_tokens_map.json +
+  tokenizer_manifest.json + README.md; reserved-token integrity verified at train time.
+- Evaluation (`evaluate_tokenizer.py` on validation + train):
+  | algo | UNK rate | tok/sent | tok/word | round-trip (norm/exact) | vocab util | reserved |
+  |---|---:|---:|---:|---|---:|---|
+  | wordpiece | 0.71% | 29.1 | 4.50 | 58.6% / 58.6% | 73.7% | OK |
+  | byte_bpe  | 0.00% | 32.4 | 5.00 | 100% / 0% | 55.2% | OK |
+  | unigram   | 0.59% | 29.2 | 4.51 | 72.4% / 72.4% | 93.5% | OK |
+  (byte-BPE: 0 UNK via byte fallback, full normalized round-trip; exact 0% because ByteLevel adds
+  a leading space — expected.)
+- Tests: **148 passed, 1 xfailed** (139 + 9 tokenizer tests, tiny fixtures, offline).
+- HF reachability: the Hub responded, but `datasets 5.0.0` streaming hit a URI-parsing quirk for
+  the bare `wikitext` id in this sandbox — noted in `docs/recommended_corpus.md`.
+
+Corpus-size decision: all recommended real corpora (EN/TH Wikipedia, OSCAR, mC4, FineWeb, CC100)
+**exceed 1 GB → not downloaded**; exact DGX download commands are in `docs/recommended_corpus.md`.
+
+Interpretation: the prepare → train → evaluate pipeline is reproducible and correct on a small
+offline corpus; all three algorithms honor the fixed special-token ids. A final algorithm will be
+chosen and frozen after evaluation on the real corpus (on the DGX). No git commit performed
+(left unstaged for manual review, per instructions).
+
+Limitations: tiny sample corpus only; real 32k vocab needs the large corpus; tokenizer quality
+not yet assessed on real multilingual text.

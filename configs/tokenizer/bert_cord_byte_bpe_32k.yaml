@@ -1,0 +1,12 @@
+# Byte-level BPE tokenizer (GPT-2 style). Every byte is representable -> no true UNK.
+tokenizer:
+  name: bert-cord-byte-bpe-32k
+  algorithm: byte_bpe
+  vocab_size: 32000
+  min_frequency: 2
+  normalization: NFC
+  lowercase: false
+  byte_fallback: true         # inherent to byte-level; kept for manifest clarity
+  add_bert_postprocessor: true
+  model_max_length: 512
+  special_tokens: ["[PAD]", "[CLS]", "[SEP]", "[MASK]", "[UNK]"]

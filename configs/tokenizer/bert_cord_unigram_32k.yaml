@@ -1,0 +1,13 @@
+# Unigram tokenizer (SentencePiece style) with byte fallback. Metaspace pre-tokenizer suits
+# scripts without whitespace word boundaries (e.g. Thai).
+tokenizer:
+  name: bert-cord-unigram-32k
+  algorithm: unigram
+  vocab_size: 32000
+  min_frequency: 2
+  normalization: NFKC
+  lowercase: false
+  byte_fallback: true
+  add_bert_postprocessor: true
+  model_max_length: 512
+  special_tokens: ["[PAD]", "[CLS]", "[SEP]", "[MASK]", "[UNK]"]

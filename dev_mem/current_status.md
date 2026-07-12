@@ -1,6 +1,36 @@
 # Current Status
 
-_Last updated: 2026-07-11 — Milestone 0.7 (ONNX) + Hugging Face ONNX package (0.1.1-onnx) staged._
+_Last updated: 2026-07-13 — Tokenizer Milestone: reproducible tokenizer pipeline (unstaged)._
+
+## Tokenizer Milestone — pipeline built & validated (changes UNSTAGED for review)
+
+- **Test suite: 148 passed, 1 xfailed** (139 + 9 tokenizer tests; tiny fixtures, offline).
+- New: `corpus.py` + `prepare_tokenizer_corpus.py` (read txt/md/jsonl/HF, normalize, dedup,
+  deterministic shuffle, language stats, manifest + report); `tokenizer_train.py` + extended
+  `train_tokenizer.py` (config-driven byte_bpe / unigram / wordpiece, special tokens pinned to
+  ids 0–4); `tokenizer_eval.py` + `evaluate_tokenizer.py`; 3 configs in `configs/tokenizer/`;
+  `docs/tokenizer_pipeline.md`, `docs/recommended_corpus.md`.
+- Verified on a ~2.6 KB offline sample corpus: all three algorithms train, reserved-token
+  integrity OK, byte-BPE 0% UNK / 100% normalized round-trip. Real 32k vocab needs the large
+  corpus.
+- **Corpus size policy applied:** real multilingual corpora (EN/TH Wikipedia, OSCAR, mC4,
+  FineWeb, CC100) all exceed 1 GB → **not downloaded**; DGX download commands in
+  `docs/recommended_corpus.md`.
+- **No git commit** (per instructions): changes left unstaged; `data/` and `artifacts/` outputs
+  are git-ignored. No AutoModel / coordination / language-understanding claim.
+
+## Immediate next step
+
+On the DGX: download a bounded multilingual corpus (`docs/recommended_corpus.md`), train the
+three 32k tokenizers, evaluate, and **select + freeze** one for MLM pretraining. Then Milestone 1
+(100M).
+
+---
+
+_Prior status (ONNX + HF packaging) below._
+
+## Hugging Face ONNX package (v0.1.2-hf-onnx) — earlier milestone
+_Last updated: 2026-07-11 — Milestone 0.7 (ONNX) + Hugging Face ONNX package staged._
 
 ## Hugging Face ONNX package (v0.1.2-hf-onnx) — staged locally, not uploaded
 
