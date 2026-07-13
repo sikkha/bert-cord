@@ -570,9 +570,23 @@ The CUDA and BF16 paths are feature-detected and covered through configuration a
 
 | Release | Description |
 |---|---|
-| `v0.1.0-dgx-ready` | Mac-verified baseline prepared for DGX deployment |
-| `v0.1.1-onnx` | ONNX export and portable inference |
-| `v0.1.2-hf-package` | Reproducible Hugging Face ONNX package tooling |
+| [`v0.3.0-packed-real-text`](https://github.com/sikkha/bert-cord/releases/tag/v0.3.0-packed-real-text) | Packed real-text corpus, memory-mapped loading, dynamic MLM masking, and DGX real-text training configurations |
+| [`v0.2.0-tokenizer-pipeline`](https://github.com/sikkha/bert-cord/releases/tag/v0.2.0-tokenizer-pipeline) | Reproducible English–Thai corpus preparation, tokenizer training, and evaluation |
+| [`v0.1.2-hf-package`](https://github.com/sikkha/bert-cord/releases/tag/v0.1.2-hf-package) | Reproducible Hugging Face ONNX package tooling |
+| [`v0.1.1-onnx`](https://github.com/sikkha/bert-cord/releases/tag/v0.1.1-onnx) | ONNX export and portable inference |
+| [`v0.1.0-dgx-ready`](https://github.com/sikkha/bert-cord/releases/tag/v0.1.0-dgx-ready) | Mac-verified baseline prepared for DGX deployment |
+
+## Current status
+
+The real-text pipeline has now been validated on an NVIDIA DGX Spark with CUDA/BF16:
+
+- final English–Thai Byte-BPE tokenizer: 32,000 tokens;
+- tokenizer unknown-token rate: 0%;
+- normalized round-trip fidelity: 100%;
+- packed corpus: 299,915 documents and 328,490,039 source tokens;
+- 2,702,248 training sequences and 53,168 validation sequences at length 128;
+- packed-corpus validation: 23/23 checks passed;
+- first real-text 100-step smoke training completed successfully on the 27.01M model.
 
 ## License
 
