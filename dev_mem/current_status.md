@@ -1,5 +1,35 @@
 # Current Status
 
+_Last updated: 2026-07-13 — Real-text stage: offline packed-corpus pipeline + loader (unstaged)._
+
+## Real-text pretraining pipeline — built & validated (changes UNSTAGED for review)
+
+- **Test suite: 159 passed, 1 xfailed** (148 + 11 packed-corpus tests; tiny fixtures, offline).
+- Rejected article-level truncation. New offline **tokenize-and-pack** pipeline
+  (`packed_corpus.py` + `tokenize_and_pack_corpus.py`): `[CLS] content [SEP] PAD` rows in
+  `data/tokenized/<run>/{train,validation}/*.npy` (uint16/uint32), long docs split across
+  sequences, **no cross-document packing**, atomic shards, manifest with checksums/counters,
+  **no stored MLM masks/labels** (masking stays dynamic).
+- Memory-mapped `PackedTokenDataset` + `PackedMLMCollator` (reuses `MLMasker`; unchanged MLM
+  objective); `DataConfig.packed_dataset_dir`; dispatch priority **packed → HF text → synthetic**.
+- `validate_packed_corpus.py` (23/23 on the sample): schema, checksums, dtype/dims, id bounds,
+  CLS/SEP/PAD framing, no MASK, no labels, non-empty splits, tokenizer checksum.
+- Configs `dgx_real_text_{smoke,pilot,full}.yaml` (separate output dirs, W&B offline; full step
+  count is a placeholder, never auto-launched). Verified end-to-end on a packed sample via a tiny
+  trainer run (exit 0).
+- **No git commit** (per instructions); `data/` + `experiments/` outputs git-ignored; model
+  architecture and synthetic checkpoints untouched.
+
+## Immediate next step
+
+On the DGX: freeze the 32k byte-BPE tokenizer, pack the 128-token EN+TH corpus, and run the
+smoke → resume → pilot → full acceptance gates (`docs/REAL_TEXT_PRETRAINING.md`). Then Milestone 1.
+
+---
+
+_Prior status (Tokenizer Milestone) below._
+
+## Tokenizer Milestone — earlier
 _Last updated: 2026-07-13 — Tokenizer Milestone: reproducible tokenizer pipeline (unstaged)._
 
 ## Tokenizer Milestone — pipeline built & validated (changes UNSTAGED for review)

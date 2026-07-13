@@ -138,6 +138,9 @@ class DataConfig:
     dataset_config: Optional[str] = None
     text_column: str = "text"
     tokenizer_path: Optional[str] = None
+    # Directory of a pre-tokenized, packed corpus (data/tokenized/<run>/). When set, the packed
+    # loader is used (highest-priority dispatch); otherwise dataset_name / synthetic apply.
+    packed_dataset_dir: Optional[str] = None
     synthetic: SyntheticConfig = field(default_factory=SyntheticConfig)
 
     @classmethod

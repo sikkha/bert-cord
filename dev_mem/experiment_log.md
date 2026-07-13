@@ -543,3 +543,37 @@ chosen and frozen after evaluation on the real corpus (on the DGX). No git commi
 
 Limitations: tiny sample corpus only; real 32k vocab needs the large corpus; tokenizer quality
 not yet assessed on real multilingual text.
+
+---
+
+## EXP-010 — Real-text stage: packed-corpus pipeline validation
+
+Date: 2026-07-13. Linux aarch64, CPU. numpy 2.2.6, tokenizers 0.23.1. Offline; no corpus
+download; synthetic checkpoints untouched; no git commit.
+
+- Packed a sample corpus (byte-BPE tokenizer, vocab 495; `--expected-vocab-size 495`), seq_len 32,
+  `--sequences-per-shard 5`:
+  - 29 docs read (0 skipped), 42 train + 6 val sequences, dtype uint16, 9 train shards + 2 val
+    (shard rollover), packing efficiency 67.45%, 0 unknown, languages latin. Manifest written.
+- `validate_packed_corpus.py … --tokenizer … --require-validation` → **23/23 PASS** (schema,
+  shard SHA-256, dtype/dims, id bounds, CLS-first, SEP-before-pad, no MASK, no labels, non-empty
+  splits, tokenizer checksum matches).
+- Packed loader dispatch: `DataConfig(packed_dataset_dir=…)` → `PackedTokenDataset` (memory-mapped)
+  + `PackedMLMCollator`; a batch has input_ids/attention_mask/labels, dynamic MASK present, 6
+  supervised label positions.
+- End-to-end trainer on the packed sample (tiny model vocab 495, 6 steps): startup + packed
+  dataloader + dynamic masking + eval + immutable checkpoint all worked; loss ≈ 6.2 ≈ ln(495)
+  (random init); tokens_seen 515; exit 0.
+- Tests: **159 passed, 1 xfailed** (148 + 11 packed-corpus tests: determinism, token preservation
+  across chunks, no cross-document packing, framing, no stored MASK, dtype selection, shard
+  rollover, cross-shard memmap indexing, checksum-corruption detection, dispatch priority,
+  dynamic masking, synthetic/HF paths unaffected).
+
+Interpretation: the offline packed pipeline is reproducible and correct; the packed loader is
+memory-mapped (no whole-corpus lists) and preserves all article content across chunks without
+crossing document boundaries; the MLM objective is unchanged. Real 32k pretraining runs happen on
+the DGX per the plan (ADR-017 / docs/REAL_TEXT_PRETRAINING.md).
+
+Limitations / unvalidated: no real EN/TH corpus packed here (needs the >1 GB download on the DGX);
+no bf16/CUDA run; smoke/pilot/full configs load but are not executed (require the real packed dir);
+tokenizer not yet frozen at 32k on real text. No git commit (left unstaged for review).

@@ -1,0 +1,31 @@
+# Real-text PILOT on the DGX: same packed 128-token EN+TH corpus, 1000 steps.
+# Fresh initialization by default; only resumes from the smoke checkpoint if you pass
+# --resume experiments/dgx_real_text_smoke/checkpoints explicitly.
+extends:
+  - ../model/bert_25m.yaml
+  - ../platform/dgx_portability.yaml
+
+train:
+  max_steps: 1000
+  warmup_steps: 100
+  eval_every: 100
+  save_every: 250
+  eval_max_batches: 20
+  log_every: 20
+  per_device_batch_size: 16
+  gradient_accumulation_steps: 2
+  max_seq_length: 128
+
+tracking:
+  backend: wandb
+  mode: offline
+  project: bert-cord
+  job_type: real_text_pilot
+
+data:
+  dataset_name: null
+  packed_dataset_dir: data/tokenized/bert_cord_en_th_128_v1
+
+output:
+  dir: experiments/dgx_real_text_pilot
+  checkpoint_dir: experiments/dgx_real_text_pilot/checkpoints

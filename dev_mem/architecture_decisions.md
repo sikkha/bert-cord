@@ -220,6 +220,60 @@ shuffle, train/load/round-trip/specials for all three algorithms, YAML config, a
 metrics. Full suite 148 passed, 1 xfailed. The three algorithms remain candidates; one will be
 selected and frozen after evaluation on the real corpus.
 
+## ADR-017: Offline packed-token corpus for real-text MLM pretraining
+
+Date: 2026-07-13
+
+Status: accepted
+
+Context: The HF-text path tokenized each dataset row and kept only the first `max_seq_length`
+tokens, discarding most of every long Wikipedia article and materializing the whole encoded
+corpus as Python lists. Unacceptable for real multilingual pretraining.
+
+Decision:
+- **Reject article-level truncation.** Add an offline tokenize-and-pack pipeline
+  (`src/coordinator_bert/packed_corpus.py`, `scripts/tokenize_and_pack_corpus.py`) that writes
+  `data/tokenized/<run>/{train,validation}/shard-*.npy` (2-D int arrays
+  `[num_sequences, sequence_length]`, uint16 when vocab ≤ 65535 else uint32) + a `manifest.json`
+  with full provenance/checksums/counters.
+- **Row format:** `[CLS] content [SEP] PAD...`, token IDs only. Content encoded WITHOUT auto
+  special tokens then framed explicitly (no double CLS/SEP). One line = one document; content
+  chunked to `seq_len-2`; **a sequence never crosses a document boundary (v1)**; only the final
+  chunk is padded; empty docs skipped. Deterministic, bounded memory, atomic shard writes; fails
+  loudly on vocab/special-id mismatch. **No MLM masks/labels are stored** — masking stays dynamic.
+- **Loader:** `PackedTokenDataset` memory-maps shards (`np.load(mmap_mode='r')`), mapping a global
+  row index to (shard, local) — no whole-corpus Python lists. New `PackedMLMCollator` reuses the
+  existing `MLMasker` (identical MLM objective; attention mask from the pad id). `DataConfig`
+  gains `packed_dataset_dir`; `build_dataloaders` dispatch priority is
+  **packed → HF text → synthetic** (existing paths unchanged).
+- **Configs:** `dgx_real_text_{smoke,pilot,full}.yaml` (separate output dirs; W&B offline). Full
+  step count is a documented placeholder; full is never launched by tests.
+- **Validation:** `scripts/validate_packed_corpus.py` checks schema, shard existence + SHA-256,
+  dtype/dims, id bounds, CLS-first / SEP-before-pad / PAD-only-after-SEP, no stored MASK, no
+  labels, non-empty splits, and tokenizer checksum.
+- **Fresh init + tokenizer checksum** are required (pilot/full start fresh unless `--resume`;
+  packed manifest pins the tokenizer SHA-256).
+
+Alternatives: on-the-fly tokenization with truncation (rejected — data loss + memory); document
+concatenation across boundaries (deferred to a possible v2 — v1 keeps document boundaries for
+simpler, safer semantics); storing precomputed masks (rejected — masking must stay dynamic).
+
+Consequences: 11 packed-corpus tests (tiny controlled WordLevel tokenizer) cover determinism,
+token preservation across chunks, no cross-document packing, framing, no stored MASK, dtype
+selection, shard rollover, memory-mapped cross-shard indexing, checksum-corruption detection,
+dispatch priority, dynamic masking, and unaffected synthetic/HF paths. Full suite 159 passed,
+1 xfailed. A tiny end-to-end trainer run consumed a packed sample corpus on CPU. No architecture
+or MLM-objective change; PyTorch checkpoints/synthetic paths untouched.
+
+### Experiment plan (real-text stage, on the DGX)
+
+1. Build + freeze a 32k byte-BPE tokenizer on a bounded EN+TH corpus.
+2. Pack the 128-token pilot corpus; `validate_packed_corpus.py --require-validation`.
+3. **Smoke** (`dgx_real_text_smoke`, 100 steps) → checkpoint/**resume** test → **pilot**
+   (`dgx_real_text_pilot`, 1000 steps, fresh). Analyze curves at each gate.
+4. Pack the 512-token full corpus; run **full** (`dgx_real_text_full`) with a deliberately chosen
+   step count — only after the gates pass. Never auto-launched by CI.
+
 ## ADR-009: Conservative, non-learned training-curve analysis + optional early stop
 
 Date: 2026-07-11

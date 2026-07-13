@@ -1,0 +1,34 @@
+# Real-text FULL on the DGX: packed 512-token EN+TH corpus, throughput settings.
+#
+# WARNING: this is a long training run. The step count below is a PLACEHOLDER and MUST be set
+# deliberately on the DGX after the smoke + pilot acceptance gates pass. Do NOT launch this from
+# tests or CI. Fresh initialization by default.
+extends:
+  - ../model/bert_25m.yaml
+  - ../platform/dgx_throughput.yaml   # bf16, SDPA on, larger batch/seq, pinned memory, workers
+
+train:
+  # PLACEHOLDER — choose on the DGX (e.g. based on corpus size / token budget). Not final.
+  max_steps: 200000
+  warmup_steps: 2000
+  eval_every: 1000
+  save_every: 2000
+  eval_max_batches: 50
+  log_every: 50
+  per_device_batch_size: 64
+  gradient_accumulation_steps: 2
+  max_seq_length: 512
+
+tracking:
+  backend: wandb
+  mode: offline
+  project: bert-cord
+  job_type: real_text_full
+
+data:
+  dataset_name: null
+  packed_dataset_dir: data/tokenized/bert_cord_en_th_512_v1
+
+output:
+  dir: experiments/dgx_real_text_full
+  checkpoint_dir: experiments/dgx_real_text_full/checkpoints

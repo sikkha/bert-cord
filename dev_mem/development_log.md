@@ -493,3 +493,38 @@ download; existing PyTorch/ONNX behavior unchanged; no AutoModel/coordination/la
 Next recommended step: on the DGX, download a bounded multilingual corpus (per
 `docs/recommended_corpus.md`), train all three 32k tokenizers on it, evaluate, then **select and
 freeze** one for MLM pretraining.
+
+---
+
+## Real-text stage: offline packed-token corpus + packed DataLoader
+
+Date: 2026-07-13.
+
+Task: replace article-level truncation with a reproducible offline tokenize-and-pack pipeline and
+a memory-mapped packed-token DataLoader. No git commit; changes left unstaged.
+
+Files added:
+- `src/coordinator_bert/packed_corpus.py` — `pack_corpus` (chunk long docs, `[CLS] content [SEP]
+  PAD`, no cross-doc, atomic shards, manifest, counters) + `PackedTokenDataset` (memory-mapped,
+  cross-shard indexing) + dtype selection.
+- `scripts/tokenize_and_pack_corpus.py`, `scripts/validate_packed_corpus.py`.
+- `configs/experiments/dgx_real_text_{smoke,pilot,full}.yaml`.
+- `tests/test_packed_corpus.py` (11 tests).
+- `docs/REAL_TEXT_PRETRAINING.md`.
+Files modified:
+- `src/coordinator_bert/configuration.py` — `DataConfig.packed_dataset_dir`.
+- `src/coordinator_bert/data.py` — `PackedMLMCollator` (reuses `MLMasker`),
+  `build_packed_dataloaders`, and dispatch priority packed → HF text → synthetic.
+Local (git-ignored) demo outputs: `data/tokenized/sample_v2/*`.
+
+Commands run (inspected): packed the sample corpus; `validate_packed_corpus.py` → 23/23 PASS;
+tiny end-to-end `pretrain_mlm.py` on the packed sample (6 steps, exit 0); full `pytest` →
+**159 passed, 1 xfailed** (148 → 159). See experiment_log EXP-010.
+
+Constraints honored: no git commit/push; changes unstaged; no corpus downloaded; synthetic
+checkpoints untouched; **model architecture unchanged**; MLM objective unchanged (same
+`MLMasker`); special IDs PAD=0/CLS=1/SEP=2/MASK=3/UNK=4; no masks/labels stored in the packed
+format.
+
+Next recommended step: on the DGX, freeze the 32k byte-BPE tokenizer, pack the 128-token EN+TH
+corpus, then run the smoke → resume → pilot → full gates (docs/REAL_TEXT_PRETRAINING.md).

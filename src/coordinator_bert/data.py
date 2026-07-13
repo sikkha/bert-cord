@@ -260,13 +260,97 @@ def build_text_dataloaders(
     return train_loader, val_loader, specials
 
 
+class PackedMLMCollator:
+    """Dynamic MLM masking for already-packed fixed-length rows.
+
+    Reuses the same :class:`MLMasker` as the other paths (identical MLM objective). Unlike
+    :class:`MLMCollator`, the attention mask is derived from the pad id (rows are pre-padded to
+    a fixed length with ``[CLS] content [SEP] PAD...``), and special tokens (including PAD) are
+    never selected for masking.
+    """
+
+    def __init__(self, masker: MLMasker, pad_token_id: int, seed: Optional[int] = None) -> None:
+        self.masker = masker
+        self.pad_token_id = pad_token_id
+        self._generator: Optional[torch.Generator] = None
+        if seed is not None:
+            self._generator = torch.Generator().manual_seed(seed)
+
+    def __call__(self, batch) -> dict[str, torch.Tensor]:
+        rows = [b if isinstance(b, torch.Tensor) else torch.as_tensor(b, dtype=torch.long)
+                for b in batch]
+        input_ids = torch.stack(rows).to(torch.long)
+        attention_mask = (input_ids != self.pad_token_id).to(torch.long)
+        special_mask = self.masker.special_tokens_mask(input_ids)
+        special_mask |= attention_mask == 0
+        masked = self.masker(input_ids, special_mask=special_mask, generator=self._generator)
+        return {
+            "input_ids": masked.input_ids,
+            "attention_mask": attention_mask,
+            "labels": masked.labels,
+        }
+
+
+def build_packed_dataloaders(
+    model_cfg: ModelConfig,
+    train_cfg: TrainConfig,
+    data_cfg: DataConfig,
+    specials: Optional[SpecialTokens] = None,
+    runtime=None,
+) -> tuple[DataLoader, DataLoader, SpecialTokens]:
+    """Build dataloaders over a pre-tokenized, memory-mapped packed corpus.
+
+    Uses the existing :class:`MLMasker` for dynamic masking (unchanged MLM objective) and the
+    same runtime DataLoader options. Validation masking is deterministic (fixed generator seed).
+    """
+    from .packed_corpus import PackedTokenDataset
+
+    specials = specials or SpecialTokens()
+    packed_dir = data_cfg.packed_dataset_dir
+    train_ds = PackedTokenDataset(packed_dir, "train")
+    if len(train_ds) == 0:
+        raise ValueError(f"packed train split is empty: {packed_dir}")
+    seq_len = train_ds.sequence_length
+    if seq_len > model_cfg.max_position_embeddings:
+        raise ValueError(f"packed sequence_length {seq_len} exceeds model "
+                         f"max_position_embeddings {model_cfg.max_position_embeddings}")
+    if seq_len != train_cfg.max_seq_length:
+        print(f"[data] note: packed sequence_length {seq_len} != train.max_seq_length "
+              f"{train_cfg.max_seq_length}; using the packed length {seq_len}.")
+
+    val_ds = PackedTokenDataset(packed_dir, "validation")
+    if len(val_ds) == 0:
+        print("[data] note: packed corpus has no validation split; using the train split for "
+              "validation (deterministic masking).")
+        val_ds = train_ds
+
+    masker = build_masker(model_cfg, train_cfg, specials)
+    train_collator = PackedMLMCollator(masker, specials.pad, seed=train_cfg.seed)
+    val_collator = PackedMLMCollator(masker, specials.pad, seed=train_cfg.seed + 12345)
+    lk = _loader_kwargs(runtime)
+    train_loader = DataLoader(
+        train_ds, batch_size=train_cfg.per_device_batch_size, shuffle=True,
+        collate_fn=train_collator, drop_last=True, **lk,
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=train_cfg.per_device_batch_size, shuffle=False,
+        collate_fn=val_collator, drop_last=False, **lk,
+    )
+    return train_loader, val_loader, specials
+
+
 def build_dataloaders(
     model_cfg: ModelConfig,
     train_cfg: TrainConfig,
     data_cfg: DataConfig,
     runtime=None,
 ) -> tuple[DataLoader, DataLoader, SpecialTokens]:
-    """Dispatch to the synthetic or text-dataset path based on config."""
+    """Dispatch to the packed / text-dataset / synthetic path based on config.
+
+    Priority: ``packed_dataset_dir`` > ``dataset_name`` (HF text) > synthetic.
+    """
+    if data_cfg.packed_dataset_dir:
+        return build_packed_dataloaders(model_cfg, train_cfg, data_cfg, runtime=runtime)
     if data_cfg.dataset_name:
         return build_text_dataloaders(model_cfg, train_cfg, data_cfg, runtime=runtime)
     return build_synthetic_dataloaders(model_cfg, train_cfg, data_cfg, runtime=runtime)

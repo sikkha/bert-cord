@@ -1,0 +1,31 @@
+# Real-text SMOKE on the DGX: 27.01M model, packed 128-token EN+TH corpus, bf16, 100 steps.
+# Purpose: prove the packed real-text path end-to-end before longer runs. Separate output dir
+# (never reuses experiments/smoke or any synthetic path).
+extends:
+  - ../model/bert_25m.yaml
+  - ../platform/dgx_portability.yaml   # bf16, CUDA (auto), SDPA off, conservative batch
+
+train:
+  max_steps: 100
+  warmup_steps: 10
+  eval_every: 25
+  save_every: 50
+  eval_max_batches: 20
+  log_every: 10
+  per_device_batch_size: 16          # conservative
+  gradient_accumulation_steps: 2
+  max_seq_length: 128
+
+tracking:
+  backend: wandb
+  mode: offline
+  project: bert-cord
+  job_type: real_text_smoke
+
+data:
+  dataset_name: null
+  packed_dataset_dir: data/tokenized/bert_cord_en_th_128_v1
+
+output:
+  dir: experiments/dgx_real_text_smoke
+  checkpoint_dir: experiments/dgx_real_text_smoke/checkpoints
